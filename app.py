@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.io as pio
+import matplotlib.pyplot as plt
+import numpy as np
 from datetime import datetime
 import os
 import io
@@ -17,8 +18,7 @@ from reportlab.lib import colors
 st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
 
 BESTAND = "peer_feedback.csv"
-
-LEERKRACHT_PIN = "1234"  # 🔐 verander dit
+LEERKRACHT_PIN = "1234"
 
 GROEPEN = [
     "Asa en Stella",
@@ -44,7 +44,7 @@ def load_data():
 df = load_data()
 
 # =========================
-# RADAR CHART (APP)
+# RADAR (STREAMLIT)
 # =========================
 
 def radar(scores, labels):
@@ -65,30 +65,34 @@ def radar(scores, labels):
     return fig
 
 # =========================
-# RADAR ALS AFBEELDING (PDF)
+# RADAR (PDF SAFE - MATPLOTLIB)
 # =========================
 
-def radar_image(scores, labels):
+def radar_pdf(scores, labels):
 
-    fig = go.Figure()
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    scores = scores + scores[:1]
+    angles = angles + angles[:1]
 
-    fig.add_trace(go.Scatterpolar(
-        r=scores + [scores[0]],
-        theta=labels + [labels[0]],
-        fill='toself'
-    ))
+    fig, ax = plt.subplots(subplot_kw=dict(polar=True))
 
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
-        showlegend=False,
-        height=500
-    )
+    ax.plot(angles, scores)
+    ax.fill(angles, scores, alpha=0.3)
 
-    img_bytes = pio.to_image(fig, format="png", engine="kaleido")
-    return img_bytes
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels)
+
+    ax.set_ylim(0, 7)
+
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png", bbox_inches="tight")
+    buffer.seek(0)
+    plt.close()
+
+    return buffer
 
 # =========================
-# AI ANALYSE (feedback-based)
+# AI ANALYSE
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
@@ -98,29 +102,20 @@ def genereer_ai_feedback(scores, tekst):
     return f"""
 ## 🤖 Diepgaande analyse
 
-### 📊 Gemiddelde score
-{avg}/7
+### Gemiddelde: {avg}/7
 
----
-
-### 💬 Analyse van leerlingfeedback
+### Feedbackanalyse
 {tekst}
 
----
+### Observatie
+Er zijn duidelijke patronen in presentatiekwaliteit en communicatie.
 
-### ⭐ Observaties
-- Feedback toont duidelijke patronen in presentatiekwaliteit
-- Sterktes en werkpunten komen consistent terug
-
----
-
-### 🚀 Aanbevelingen
-- Werk aan consistentie tussen spreken, visual en interactie
-- Focus op duidelijkheid en structuur
+### Advies
+Werk aan structuur, duidelijkheid en publieksinteractie.
 """
 
 # =========================
-# PDF GENERATOR (PROFESSIONEEL)
+# PDF GENERATOR (FIXED)
 # =========================
 
 def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
@@ -130,80 +125,51 @@ def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
 
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle(
-        name="TitleStyle",
+    title = ParagraphStyle(
+        name="title",
         fontSize=20,
-        leading=24,
         textColor=colors.darkblue,
         spaceAfter=12
     )
 
-    section_style = ParagraphStyle(
-        name="Section",
-        fontSize=13,
-        leading=16,
-        spaceAfter=8,
-        textColor=colors.black
-    )
-
     content = []
 
-    # =========================
-    # TITEL
-    # =========================
-    content.append(Paragraph(f"Groepsrapport: {groep}", title_style))
+    # TITLE
+    content.append(Paragraph(f"Groepsrapport: {groep}", title))
     content.append(Spacer(1, 12))
 
-    # =========================
-    # RADAR CHART (IMAGE)
-    # =========================
-
+    # RADAR (MATPLOTLIB IMAGE)
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
-    img = radar_image(scores, labels)
 
-    img_buffer = io.BytesIO(img)
-
-    content.append(Paragraph("📊 Prestatie-overzicht", section_style))
-    content.append(Image(img_buffer, width=400, height=300))
+    img = radar_pdf(scores, labels)
+    content.append(Image(img, width=400, height=300))
     content.append(Spacer(1, 12))
 
-    # =========================
     # SCORES
-    # =========================
-
-    content.append(Paragraph("📈 Groepsscores", section_style))
+    content.append(Paragraph("Scores", styles["Heading2"]))
 
     for i, l in enumerate(labels):
         content.append(Paragraph(f"{l}: {round(scores[i],1)}/7", styles["BodyText"]))
 
     content.append(Spacer(1, 12))
 
-    # =========================
-    # NAAMOVERZICHT
-    # =========================
-
+    # NAMES
     namen = ", ".join(groep_df["groep"].astype(str).tolist())
-
-    content.append(Paragraph("👥 Evaluaties door:", section_style))
+    content.append(Paragraph("Deelnemers:", styles["Heading2"]))
     content.append(Paragraph(namen, styles["BodyText"]))
+
     content.append(Spacer(1, 12))
 
-    # =========================
-    # KLAS BENCHMARK
-    # =========================
-
-    content.append(Paragraph("🏫 Klasgemiddelde", section_style))
+    # BENCHMARK
+    content.append(Paragraph("Klasgemiddelde", styles["Heading2"]))
 
     for i, l in enumerate(labels):
         content.append(Paragraph(f"{l}: {round(klas_scores[i],1)}/7", styles["BodyText"]))
 
     content.append(Spacer(1, 12))
 
-    # =========================
-    # AI RAPPORT
-    # =========================
-
-    content.append(Paragraph("🤖 Analyse", section_style))
+    # AI
+    content.append(Paragraph("Analyse", styles["Heading2"]))
 
     for line in rapport.split("\n"):
         content.append(Paragraph(line, styles["BodyText"]))
@@ -222,34 +188,32 @@ st.title("🎓 Peer Feedback Tool")
 
 mode = st.radio(
     "Kies modus",
-    ["✍️ Leerlingen: feedback geven", "📊 Leerkracht: groepsrapport"]
+    ["✍️ Leerlingen", "📊 Leerkracht"]
 )
 
 # =========================
 # LEERLINGEN
 # =========================
 
-if mode == "✍️ Leerlingen: feedback geven":
+if mode == "✍️ Leerlingen":
 
-    groep = st.selectbox("Selecteer groep", GROEPEN)
+    groep = st.selectbox("Groep", GROEPEN)
 
-    with st.form("feedback_form"):
-
-        st.subheader(f"Evaluatie: {groep}")
+    with st.form("form"):
 
         presence = st.slider("Presence", 1, 7, 5)
-        taal = st.slider("Rijke taal", 1, 7, 5)
-        contact = st.slider("Publiekscontact", 1, 7, 5)
+        taal = st.slider("Taal", 1, 7, 5)
+        contact = st.slider("Contact", 1, 7, 5)
         visual = st.slider("Visual", 1, 7, 5)
-        vragen = st.slider("Vragen (0 = n.v.t.)", 0, 7, 5)
+        vragen = st.slider("Vragen", 0, 7, 5)
 
-        feedback = st.text_area("Woordelijke feedback")
+        feedback = st.text_area("Feedback")
 
         submit = st.form_submit_button("Opslaan")
 
         if submit:
 
-            nieuwe = {
+            new = {
                 "groep": groep,
                 "presence": presence,
                 "taal": taal,
@@ -261,44 +225,32 @@ if mode == "✍️ Leerlingen: feedback geven":
             }
 
             if os.path.exists(BESTAND):
-                df_old = pd.read_csv(BESTAND)
-                df_new = pd.concat([df_old, pd.DataFrame([nieuwe])])
+                df2 = pd.read_csv(BESTAND)
+                df2 = pd.concat([df2, pd.DataFrame([new])])
             else:
-                df_new = pd.DataFrame([nieuwe])
+                df2 = pd.DataFrame([new])
 
-            df_new.to_csv(BESTAND, index=False)
+            df2.to_csv(BESTAND, index=False)
 
-            st.success("Feedback opgeslagen!")
+            st.success("Opgeslagen!")
 
 # =========================
 # LEERKRACHT
 # =========================
 
-if mode == "📊 Leerkracht: groepsrapport":
+if mode == "📊 Leerkracht":
 
-    pin = st.text_input("Leerkracht-PIN", type="password")
+    pin = st.text_input("PIN", type="password")
 
     if pin != LEERKRACHT_PIN:
-        st.warning("Geen toegang.")
         st.stop()
 
-    st.success("Toegang verleend")
-
-    groep = st.selectbox("Selecteer groep", GROEPEN)
+    groep = st.selectbox("Groep", GROEPEN)
 
     if df.empty:
-        st.warning("Geen data.")
         st.stop()
 
     groep_df = df[df["groep"] == groep]
-
-    if groep_df.empty:
-        st.warning("Geen feedback voor deze groep.")
-        st.stop()
-
-    # =========================
-    # SCORES
-    # =========================
 
     scores = [
         groep_df["presence"].mean(),
@@ -318,41 +270,19 @@ if mode == "📊 Leerkracht: groepsrapport":
 
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
-    st.subheader(f"📊 Groepsrapport: {groep}")
-
     st.plotly_chart(radar(scores, labels), use_container_width=True)
 
-    st.metric("Gemiddelde", round(sum(scores)/len(scores), 1))
-    st.metric("Aantal evaluaties", len(groep_df))
-
-    # =========================
-    # TEKST CLEAN
-    # =========================
-
-    tekst = "\n".join(
-        groep_df["feedback"].fillna("").astype(str).tolist()
-    )
+    tekst = "\n".join(groep_df["feedback"].fillna("").astype(str).tolist())
 
     rapport = genereer_ai_feedback(scores, tekst)
 
     st.markdown(rapport)
 
-    # =========================
-    # PDF EXPORT
-    # =========================
-
     pdf = maak_pdf(groep, groep_df, scores, klas_scores, rapport)
 
     st.download_button(
-        "📄 Download PDF rapport",
+        "Download PDF",
         data=pdf,
-        file_name=f"groepsrapport_{groep}.pdf",
+        file_name=f"rapport_{groep}.pdf",
         mime="application/pdf"
     )
-
-# =========================
-# DEBUG
-# =========================
-
-with st.expander("📁 Data"):
-    st.dataframe(df)
