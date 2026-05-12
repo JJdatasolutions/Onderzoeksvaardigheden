@@ -192,7 +192,6 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
 
     content.append(Paragraph("STERKE PUNTEN", styles["Heading2"]))
     content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
-
     content.append(Spacer(1, 10))
 
     content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
@@ -228,16 +227,22 @@ if mode == "✍️ Leerlingen":
         vragen = st.slider("Vragen", 1, 7, 5)
 
         st.markdown("### 👍 Positieve punten")
-        positief = [
-            opt for i, opt in enumerate(positieve_opties)
-            if st.checkbox(opt, key=f"pos_{i}")
-        ][:3]
+
+        cols = st.columns(3)
+        positief = []
+
+        for i, opt in enumerate(positieve_opties):
+            if cols[i % 3].checkbox(opt, key=f"pos_{i}"):
+                positief.append(opt)
 
         st.markdown("### 👎 Werkpunten")
-        werkpunt = [
-            opt for i, opt in enumerate(negatieve_opties)
-            if st.checkbox(opt, key=f"neg_{i}")
-        ][:3]
+
+        cols = st.columns(3)
+        werkpunt = []
+
+        for i, opt in enumerate(negatieve_opties):
+            if cols[i % 3].checkbox(opt, key=f"neg_{i}"):
+                werkpunt.append(opt)
 
         submit = st.form_submit_button("Opslaan")
 
