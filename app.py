@@ -264,21 +264,21 @@ if mode == "✍️ Leerlingen":
 
     werkpunt = werkpunt[:3]
 
-    # =========================
-    # SUBMIT
-    # =========================
+   # =========================
+# SUBMIT
+# =========================
 
-    submit = st.form_submit_button("Opslaan")
-        if submit:
+submit = st.form_submit_button("Opslaan")
 
-            new = {
-                "groep": groep,
-                "presence": presence,
-                "taal": taal,
-                "contact": contact,
-                "visual": visual,
-                "vragen": vragen,
+if submit:
 
+    new = {
+        "groep": groep,
+        "presence": presence,
+        "taal": taal,
+        "contact": contact,
+        "visual": visual,
+        "vragen": vragen,
                 "positief_1": positief[0] if len(positief)>0 else None,
                 "positief_2": positief[1] if len(positief)>1 else None,
                 "positief_3": positief[2] if len(positief)>2 else None,
