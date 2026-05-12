@@ -9,9 +9,10 @@ import io
 from collections import Counter
 from wordcloud import WordCloud
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors as rl_colors
 
 # =========================
 # CONFIG
@@ -62,11 +63,10 @@ negatieve_opties = [
 ]
 
 # =========================
-# MAX 3 SELECTIE UI
+# MAX 3 SELECTIE
 # =========================
 
 def checkbox_limited(options, prefix):
-
     cols = st.columns(3)
     selected = []
 
@@ -109,7 +109,7 @@ def radar(scores, klas_scores, labels):
     return fig
 
 # =========================
-# WORDCLOUD FIX (BELANGRIJK)
+# WORDCLOUD
 # =========================
 
 def maak_wordcloud(woorden, kleur):
@@ -124,8 +124,7 @@ def maak_wordcloud(woorden, kleur):
         height=450,
         background_color="white",
         colormap=kleur,
-        collocations=False,
-        prefer_horizontal=1.0
+        collocations=False
     ).generate_from_frequencies(freq)
 
     fig, ax = plt.subplots()
@@ -162,31 +161,14 @@ def analyseer_groep(groep_df):
 
 def maak_pdf(groep, scores, klas_scores, groep_df):
 
-    import io
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from datetime import datetime
-
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
-    from reportlab.lib import colors as rl_colors
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.pagesizes import A4
-
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
 
     styles = getSampleStyleSheet()
 
-    # =========================
-    # STYLES (SAFE)
-    # =========================
-
     title = styles["Title"]
     h2 = styles["Heading2"]
     body = styles["BodyText"]
-
-    # ❗ ALLEEN rl_colors gebruiken
-    h2.textColor = rl_colors.HexColor("#2E4057")
 
     content = []
 
@@ -254,19 +236,29 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     content.append(table)
 
     # =========================
-    # FOOTER
+    # WORDCLOUDS
     # =========================
 
+    positief, werkpunt = analyseer_groep(groep_df)
+
+    pos_img = maak_wordcloud(positief, "Greens")
+    neg_img = maak_wordcloud(werkpunt, "Reds")
+
     content.append(Spacer(1, 20))
-    content.append(Paragraph(
-        "Automatisch gegenereerd rapport op basis van peer feedback.",
-        body
-    ))
+
+    content.append(Paragraph("👍 Sterke punten", h2))
+    content.append(Image(pos_img, width=350, height=180))
+
+    content.append(Spacer(1, 15))
+
+    content.append(Paragraph("👎 Werkpunten", h2))
+    content.append(Image(neg_img, width=350, height=180))
 
     doc.build(content)
     buffer.seek(0)
 
     return buffer
+
 # =========================
 # UI
 # =========================
@@ -276,7 +268,7 @@ st.title("🎓 Peer Feedback Tool")
 mode = st.radio("Kies modus", ["✍️ Leerlingen", "📊 Leerkracht"])
 
 # =========================
-# LEERLINGEN (HERSTELD)
+# LEERLINGEN
 # =========================
 
 if mode == "✍️ Leerlingen":
