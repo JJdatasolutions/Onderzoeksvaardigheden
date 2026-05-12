@@ -6,23 +6,25 @@ import numpy as np
 from datetime import datetime
 import os
 import io
-import textwrap
 
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
     Image,
-    PageBreak,
     Table,
-    TableStyle
+    TableStyle,
+    HRFlowable
 )
 
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import (
+    getSampleStyleSheet,
+    ParagraphStyle
+)
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus.flowables import HRFlowable
 
 # =========================
 # CONFIG
@@ -53,8 +55,10 @@ GROEPEN = [
 # =========================
 
 def load_data():
+
     if os.path.exists(BESTAND):
         return pd.read_csv(BESTAND)
+
     return pd.DataFrame()
 
 df = load_data()
@@ -95,12 +99,20 @@ def radar(scores, labels):
 
 def radar_pdf(scores, labels):
 
-    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    angles = np.linspace(
+        0,
+        2 * np.pi,
+        len(labels),
+        endpoint=False
+    ).tolist()
 
     scores_closed = scores + scores[:1]
     angles_closed = angles + angles[:1]
 
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    fig, ax = plt.subplots(
+        figsize=(6, 6),
+        subplot_kw=dict(polar=True)
+    )
 
     ax.plot(
         angles_closed,
@@ -131,12 +143,13 @@ def radar_pdf(scores, labels):
     )
 
     buffer.seek(0)
+
     plt.close()
 
     return buffer
 
 # =========================
-# VERBETERDE AI ANALYSE
+# AI ANALYSE
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
@@ -148,46 +161,86 @@ def genereer_ai_feedback(scores, tekst):
     positieve_zinnen = []
     verbeter_zinnen = []
 
-    # POSITIEVE ANALYSE
+    # POSITIEVE PUNTEN
 
-    if any(w in tekst_lower for w in ["duidelijk", "helder", "structuur"]):
+    if any(w in tekst_lower for w in [
+        "duidelijk",
+        "helder",
+        "structuur"
+    ]):
+
         positieve_zinnen.append(
             "De presentatie werd als duidelijk en goed gestructureerd ervaren."
         )
 
-    if any(w in tekst_lower for w in ["zelfzeker", "rustig", "vlot"]):
+    if any(w in tekst_lower for w in [
+        "zelfzeker",
+        "rustig",
+        "vlot"
+    ]):
+
         positieve_zinnen.append(
             "De groep kwam zelfzeker en vlot over tijdens het presenteren."
         )
 
-    if any(w in tekst_lower for w in ["mooi", "visual", "slides", "afbeelding"]):
+    if any(w in tekst_lower for w in [
+        "mooi",
+        "visual",
+        "slides",
+        "afbeelding"
+    ]):
+
         positieve_zinnen.append(
             "De visuele ondersteuning droeg positief bij aan de presentatie."
         )
 
-    if any(w in tekst_lower for w in ["interessant", "boeiend", "enthousiast"]):
+    if any(w in tekst_lower for w in [
+        "interessant",
+        "boeiend",
+        "enthousiast"
+    ]):
+
         positieve_zinnen.append(
             "Het publiek bleef betrokken dankzij een enthousiaste presentatieaanpak."
         )
 
     # VERBETERPUNTEN
 
-    if any(w in tekst_lower for w in ["zachter", "luider", "volume"]):
+    if any(w in tekst_lower for w in [
+        "zachter",
+        "luider",
+        "volume"
+    ]):
+
         verbeter_zinnen.append(
             "Werk verder aan stemvolume en verstaanbaarheid."
         )
 
-    if any(w in tekst_lower for w in ["sneller", "traag", "tempo"]):
+    if any(w in tekst_lower for w in [
+        "sneller",
+        "trager",
+        "tempo"
+    ]):
+
         verbeter_zinnen.append(
             "Meer controle over spreektempo kan de presentatie nog sterker maken."
         )
 
-    if any(w in tekst_lower for w in ["meer", "vragen", "interactie"]):
+    if any(w in tekst_lower for w in [
+        "meer",
+        "vragen",
+        "interactie"
+    ]):
+
         verbeter_zinnen.append(
             "Meer interactie met het publiek zou de betrokkenheid verhogen."
         )
 
-    if any(w in tekst_lower for w in ["onduidelijk", "verwarrend"]):
+    if any(w in tekst_lower for w in [
+        "onduidelijk",
+        "verwarrend"
+    ]):
+
         verbeter_zinnen.append(
             "Sommige onderdelen mogen nog duidelijker uitgewerkt worden."
         )
@@ -195,11 +248,13 @@ def genereer_ai_feedback(scores, tekst):
     # FALLBACKS
 
     if len(positieve_zinnen) == 0:
+
         positieve_zinnen.append(
             "De groep bracht een verzorgde en degelijke presentatie."
         )
 
     if len(verbeter_zinnen) == 0:
+
         verbeter_zinnen.append(
             "De presentatie heeft een sterke basis en kan verder verfijnd worden."
         )
@@ -211,15 +266,7 @@ def genereer_ai_feedback(scores, tekst):
     }
 
 # =========================
-# EXTRA DESIGN ELEMENTEN
-# =========================
-
-from reportlab.platypus import (
-    KeepTogether
-)
-
-# =========================
-# NIEUWE PDF EXPORT
+# PDF EXPORT
 # =========================
 
 def maak_pdf(groep, scores, klas_scores, analyse):
@@ -239,29 +286,64 @@ def maak_pdf(groep, scores, klas_scores, analyse):
 
     content = []
 
-    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+    labels = [
+        "Presence",
+        "Taal",
+        "Contact",
+        "Visual",
+        "Vragen"
+    ]
 
     # =========================
-    # COVER HEADER
+    # STYLES
     # =========================
 
     titel_style = ParagraphStyle(
         "Titel",
-        parent=styles["title"],
+        parent=styles["Heading1"],
         fontSize=28,
         leading=34,
         alignment=TA_CENTER,
-        textColor=colors.HexColor("#16324F")
+        textColor=colors.HexColor("#16324F"),
+        spaceAfter=10
     )
 
     groep_style = ParagraphStyle(
         "Groep",
-        parent=styles["body"],
+        parent=styles["BodyText"],
         fontSize=15,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#5B6575"),
         leading=24
     )
+
+    heading_style = ParagraphStyle(
+        "Heading",
+        parent=styles["Heading2"],
+        fontSize=18,
+        textColor=colors.HexColor("#16324F"),
+        spaceAfter=16
+    )
+
+    body_style = ParagraphStyle(
+        "Body",
+        parent=styles["BodyText"],
+        fontSize=11,
+        leading=20,
+        textColor=colors.HexColor("#2B2B2B")
+    )
+
+    footer_style = ParagraphStyle(
+        "Footer",
+        parent=styles["BodyText"],
+        alignment=TA_CENTER,
+        fontSize=9,
+        textColor=colors.HexColor("#7D8793")
+    )
+
+    # =========================
+    # HEADER
+    # =========================
 
     datum = datetime.now().strftime("%d/%m/%Y")
 
@@ -274,8 +356,6 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         )
     )
 
-    content.append(Spacer(1, 10))
-
     content.append(
         Paragraph(
             f"{groep}<br/>{datum}",
@@ -284,8 +364,6 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     )
 
     content.append(Spacer(1, 30))
-
-    # STRAKKE LIJN
 
     content.append(
         HRFlowable(
@@ -316,8 +394,6 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("FONTSIZE", (0, 0), (-1, -1), 20),
         ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
     ]))
 
     content.append(score_table)
@@ -325,7 +401,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     content.append(Spacer(1, 30))
 
     # =========================
-    # RADAR CHART IN CARD
+    # RADAR CHART
     # =========================
 
     chart = radar_pdf(scores, labels)
@@ -344,7 +420,6 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     chart_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
         ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#D9E1EA")),
-        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
         ("TOPPADDING", (0, 0), (-1, -1), 15),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 15),
         ("LEFTPADDING", (0, 0), (-1, -1), 20),
@@ -353,19 +428,11 @@ def maak_pdf(groep, scores, klas_scores, analyse):
 
     content.append(chart_table)
 
-    content.append(Spacer(1, 30))
+    content.append(Spacer(1, 35))
 
     # =========================
     # VERGELIJKINGSTABEL
     # =========================
-
-    heading_style = ParagraphStyle(
-        "Heading",
-        parent=styles["heading"],
-        fontSize=18,
-        textColor=colors.HexColor("#16324F"),
-        spaceAfter=16
-    )
 
     content.append(
         Paragraph(
@@ -416,119 +483,90 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     content.append(Spacer(1, 35))
 
     # =========================
-    # FEEDBACK BLOKKEN
+    # POSITIEVE PUNTEN
     # =========================
 
-    box_title = ParagraphStyle(
-        "BoxTitle",
-        parent=styles["body"],
-        fontSize=15,
-        textColor=colors.white,
-        leading=18,
-        alignment=TA_LEFT
+    content.append(
+        Paragraph(
+            "Sterke punten",
+            heading_style
+        )
     )
-
-    box_text = ParagraphStyle(
-        "BoxText",
-        parent=styles["body"],
-        fontSize=11,
-        leading=20,
-        textColor=colors.HexColor("#2B2B2B")
-    )
-
-    # GOEDE PUNTEN
 
     positieve_html = "<br/><br/>".join([
-        f"• {punt}" for punt in analyse["positief"]
+        f"• {punt}"
+        for punt in analyse["positief"]
     ])
 
-    positief_blok = Table(
+    positieve_box = Table(
         [[
-            Paragraph(
-                "<b>Sterke punten</b>",
-                box_title
-            )
-        ],
-        [
             Paragraph(
                 positieve_html,
-                box_text
+                body_style
             )
         ]],
         colWidths=[470]
     )
 
-    positief_blok.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2F6B3B")),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F4FBF5")),
+    positieve_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F4FBF5")),
         ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#D7E9DA")),
-        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
 
-        ("TOPPADDING", (0, 0), (-1, 0), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
 
-        ("TOPPADDING", (0, 1), (-1, -1), 14),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 14),
         ("LEFTPADDING", (0, 0), (-1, -1), 16),
         ("RIGHTPADDING", (0, 0), (-1, -1), 16),
     ]))
 
-    content.append(positief_blok)
+    content.append(positieve_box)
 
-    content.append(Spacer(1, 20))
+    content.append(Spacer(1, 30))
 
+    # =========================
     # VERBETERPUNTEN
+    # =========================
+
+    content.append(
+        Paragraph(
+            "Verbeterpunten",
+            heading_style
+        )
+    )
 
     verbeter_html = "<br/><br/>".join([
-        f"• {punt}" for punt in analyse["verbeter"]
+        f"• {punt}"
+        for punt in analyse["verbeter"]
     ])
 
-    verbeter_blok = Table(
+    verbeter_box = Table(
         [[
             Paragraph(
-                "<b>Verbeterpunten</b>",
-                box_title
-            )
-        ],
-        [
-            Paragraph(
                 verbeter_html,
-                box_text
+                body_style
             )
         ]],
         colWidths=[470]
     )
 
-    verbeter_blok.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#A14B2A")),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#FFF8F5")),
+    verbeter_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF8F5")),
         ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#F0D7CC")),
-        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
 
-        ("TOPPADDING", (0, 0), (-1, 0), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
 
-        ("TOPPADDING", (0, 1), (-1, -1), 14),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 14),
         ("LEFTPADDING", (0, 0), (-1, -1), 16),
         ("RIGHTPADDING", (0, 0), (-1, -1), 16),
     ]))
 
-    content.append(verbeter_blok)
+    content.append(verbeter_box)
 
     content.append(Spacer(1, 35))
 
     # =========================
     # FOOTER
     # =========================
-
-    footer = ParagraphStyle(
-        "Footer",
-        parent=styles["body"],
-        alignment=TA_CENTER,
-        fontSize=9,
-        textColor=colors.HexColor("#7D8793")
-    )
 
     content.append(
         HRFlowable(
@@ -543,7 +581,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     content.append(
         Paragraph(
             "Automatisch gegenereerd rapport • Peer Feedback Tool",
-            footer
+            footer_style
         )
     )
 
@@ -552,6 +590,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     buffer.seek(0)
 
     return buffer
+
 # =========================
 # UI
 # =========================
@@ -569,7 +608,10 @@ mode = st.radio(
 
 if mode == "✍️ Leerlingen":
 
-    groep = st.selectbox("Groep", GROEPEN)
+    groep = st.selectbox(
+        "Groep",
+        GROEPEN
+    )
 
     with st.form("form"):
 
@@ -609,9 +651,13 @@ if mode == "✍️ Leerlingen":
                 ])
 
             else:
+
                 df2 = pd.DataFrame([new])
 
-            df2.to_csv(BESTAND, index=False)
+            df2.to_csv(
+                BESTAND,
+                index=False
+            )
 
             st.success("Feedback opgeslagen!")
 
@@ -635,13 +681,21 @@ if mode == "📊 Leerkracht":
     )
 
     if df.empty:
-        st.warning("Nog geen feedback beschikbaar.")
+
+        st.warning(
+            "Nog geen feedback beschikbaar."
+        )
+
         st.stop()
 
     groep_df = df[df["groep"] == groep]
 
     if groep_df.empty:
-        st.warning("Nog geen feedback voor deze groep.")
+
+        st.warning(
+            "Nog geen feedback voor deze groep."
+        )
+
         st.stop()
 
     scores = [
@@ -660,7 +714,13 @@ if mode == "📊 Leerkracht":
         df["vragen"].replace(0, pd.NA).mean()
     ]
 
-    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+    labels = [
+        "Presence",
+        "Taal",
+        "Contact",
+        "Visual",
+        "Vragen"
+    ]
 
     st.plotly_chart(
         radar(scores, labels),
@@ -674,19 +734,26 @@ if mode == "📊 Leerkracht":
         .tolist()
     )
 
-    rapport = genereer_ai_feedback(
+    analyse = genereer_ai_feedback(
         scores,
         tekst
     )
 
-    st.markdown("## Samenvatting van de feedback")
-    st.markdown(rapport)
+    st.markdown("## ✅ Sterke punten")
+
+    for punt in analyse["positief"]:
+        st.markdown(f"- {punt}")
+
+    st.markdown("## 🚀 Verbeterpunten")
+
+    for punt in analyse["verbeter"]:
+        st.markdown(f"- {punt}")
 
     pdf = maak_pdf(
         groep,
         scores,
         klas_scores,
-        rapport
+        analyse
     )
 
     st.download_button(
