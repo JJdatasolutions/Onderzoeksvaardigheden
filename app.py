@@ -227,49 +227,29 @@ if mode == "✍️ Leerlingen":
 
     with st.form("form"):
 
-        presence = st.slider("Presence", 1, 7, 5)
-        taal = st.slider("Taal", 1, 7, 5)
-        contact = st.slider("Contact", 1, 7, 5)
-        visual = st.slider("Visual", 1, 7, 5)
-        vragen = st.slider("Vragen", 1, 7, 5)
-    # =========================
-    # POSITIEVE PUNTEN
-    # =========================
+    presence = st.slider("Presence", 1, 7, 5)
+    taal = st.slider("Taal", 1, 7, 5)
+    contact = st.slider("Contact", 1, 7, 5)
+    visual = st.slider("Visual", 1, 7, 5)
+    vragen = st.slider("Vragen", 1, 7, 5)
 
-    st.markdown("### 👍 Positieve punten")
-
-    cols = st.columns(3)
+    # checkboxes etc...
+    st.subheader("👍 Positief")
     positief = []
-
     for i, opt in enumerate(positieve_opties):
-        col = cols[i % 3]
-        if col.checkbox(opt, key=f"pos_{i}"):
+        if st.checkbox(opt, key=f"pos_{i}"):
             positief.append(opt)
 
-    positief = positief[:3]
-
-    # =========================
-    # WERKPUNTEN
-    # =========================
-
-    st.markdown("### 👎 Werkpunten")
-
-    cols = st.columns(3)
+    st.subheader("👎 Werkpunten")
     werkpunt = []
-
     for i, opt in enumerate(negatieve_opties):
-        col = cols[i % 3]
-        if col.checkbox(opt, key=f"neg_{i}"):
+        if st.checkbox(opt, key=f"neg_{i}"):
             werkpunt.append(opt)
 
-    werkpunt = werkpunt[:3]
+    # 👇 MOET BINNEN FORM
+    submit = st.form_submit_button("Opslaan")
 
-# =========================
-# SUBMIT
-# =========================
-
-submit = st.form_submit_button("Opslaan")
-
+# 👇 BUITEN FORM
 if submit:
 
     new = {
@@ -280,13 +260,13 @@ if submit:
         "visual": visual,
         "vragen": vragen,
 
-        "positief_1": positief[0] if len(positief) > 0 else None,
-        "positief_2": positief[1] if len(positief) > 1 else None,
-        "positief_3": positief[2] if len(positief) > 2 else None,
+        "positief_1": positief[0] if len(positief)>0 else None,
+        "positief_2": positief[1] if len(positief)>1 else None,
+        "positief_3": positief[2] if len(positief)>2 else None,
 
-        "werkpunt_1": werkpunt[0] if len(werkpunt) > 0 else None,
-        "werkpunt_2": werkpunt[1] if len(werkpunt) > 1 else None,
-        "werkpunt_3": werkpunt[2] if len(werkpunt) > 2 else None,
+        "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
+        "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
+        "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
 
         "tijdstip": datetime.now()
     }
@@ -295,7 +275,6 @@ if submit:
     df2.to_csv(BESTAND, index=False)
 
     st.success("Opgeslagen!")
-
 # =========================
 # LEERKRACHT
 # =========================
