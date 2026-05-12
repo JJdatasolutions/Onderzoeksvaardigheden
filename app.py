@@ -264,7 +264,7 @@ if mode == "✍️ Leerlingen":
 
     werkpunt = werkpunt[:3]
 
-   # =========================
+# =========================
 # SUBMIT
 # =========================
 
@@ -279,21 +279,22 @@ if submit:
         "contact": contact,
         "visual": visual,
         "vragen": vragen,
-                "positief_1": positief[0] if len(positief)>0 else None,
-                "positief_2": positief[1] if len(positief)>1 else None,
-                "positief_3": positief[2] if len(positief)>2 else None,
 
-                "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
-                "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
-                "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
+        "positief_1": positief[0] if len(positief) > 0 else None,
+        "positief_2": positief[1] if len(positief) > 1 else None,
+        "positief_3": positief[2] if len(positief) > 2 else None,
 
-                "tijdstip": datetime.now()
-            }
+        "werkpunt_1": werkpunt[0] if len(werkpunt) > 0 else None,
+        "werkpunt_2": werkpunt[1] if len(werkpunt) > 1 else None,
+        "werkpunt_3": werkpunt[2] if len(werkpunt) > 2 else None,
 
-            df2 = pd.concat([df, pd.DataFrame([new])])
-            df2.to_csv(BESTAND, index=False)
+        "tijdstip": datetime.now()
+    }
 
-            st.success("Opgeslagen!")
+    df2 = pd.concat([df, pd.DataFrame([new])])
+    df2.to_csv(BESTAND, index=False)
+
+    st.success("Opgeslagen!")
 
 # =========================
 # LEERKRACHT
