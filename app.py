@@ -136,221 +136,246 @@ def radar_pdf(scores, labels):
     return buffer
 
 # =========================
-# AI FEEDBACK SAMENVATTING
+# VERBETERDE AI ANALYSE
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    if len(tekst.strip()) == 0:
-        feedback_samenvatting = (
-            "Er werd weinig geschreven feedback gegeven. "
-            "De presentatie kwam over het algemeen degelijk over "
-            "met ruimte voor verdere verfijning."
+    tekst_lower = tekst.lower()
+
+    positieve_zinnen = []
+    verbeter_zinnen = []
+
+    # POSITIEVE ANALYSE
+
+    if any(w in tekst_lower for w in ["duidelijk", "helder", "structuur"]):
+        positieve_zinnen.append(
+            "De presentatie werd als duidelijk en goed gestructureerd ervaren."
         )
 
-    else:
+    if any(w in tekst_lower for w in ["zelfzeker", "rustig", "vlot"]):
+        positieve_zinnen.append(
+            "De groep kwam zelfzeker en vlot over tijdens het presenteren."
+        )
 
-        positieve_punten = []
-        werkpunten = []
+    if any(w in tekst_lower for w in ["mooi", "visual", "slides", "afbeelding"]):
+        positieve_zinnen.append(
+            "De visuele ondersteuning droeg positief bij aan de presentatie."
+        )
 
-        tekst_lower = tekst.lower()
+    if any(w in tekst_lower for w in ["interessant", "boeiend", "enthousiast"]):
+        positieve_zinnen.append(
+            "Het publiek bleef betrokken dankzij een enthousiaste presentatieaanpak."
+        )
 
-        positieve_keywords = [
-            "goed",
-            "sterk",
-            "duidelijk",
-            "vlot",
-            "interessant",
-            "mooi",
-            "rustig",
-            "zelfzeker",
-            "enthousiast"
-        ]
+    # VERBETERPUNTEN
 
-        werkpunt_keywords = [
-            "meer",
-            "beter",
-            "sneller",
-            "trager",
-            "onduidelijk",
-            "zachter",
-            "luid",
-            "weinig",
-            "moeilijk"
-        ]
+    if any(w in tekst_lower for w in ["zachter", "luider", "volume"]):
+        verbeter_zinnen.append(
+            "Werk verder aan stemvolume en verstaanbaarheid."
+        )
 
-        for woord in positieve_keywords:
-            if woord in tekst_lower:
-                positieve_punten.append(woord)
+    if any(w in tekst_lower for w in ["sneller", "traag", "tempo"]):
+        verbeter_zinnen.append(
+            "Meer controle over spreektempo kan de presentatie nog sterker maken."
+        )
 
-        for woord in werkpunt_keywords:
-            if woord in tekst_lower:
-                werkpunten.append(woord)
+    if any(w in tekst_lower for w in ["meer", "vragen", "interactie"]):
+        verbeter_zinnen.append(
+            "Meer interactie met het publiek zou de betrokkenheid verhogen."
+        )
 
-        feedback_samenvatting = f"""
-De groep maakte een verzorgde presentatie met een gemiddelde score van {avg}/7.
-Uit de feedback blijkt dat de presentatie vooral sterk was op vlak van duidelijkheid,
-communicatie en algemene presentatievaardigheden.
+    if any(w in tekst_lower for w in ["onduidelijk", "verwarrend"]):
+        verbeter_zinnen.append(
+            "Sommige onderdelen mogen nog duidelijker uitgewerkt worden."
+        )
 
-Leerlingen waardeerden voornamelijk de structuur, de spreekstijl en de visuele ondersteuning.
-Daarnaast kwam de groep zelfzeker en betrokken over tijdens het presenteren.
+    # FALLBACKS
 
-Er zijn ook enkele groeipunten zichtbaar. De feedback suggereert dat extra aandacht kan
-gaan naar publieksinteractie, variatie in spreektempo en nog krachtigere visuele ondersteuning.
+    if len(positieve_zinnen) == 0:
+        positieve_zinnen.append(
+            "De groep bracht een verzorgde en degelijke presentatie."
+        )
 
-Globaal toont deze presentatie een sterke basis met duidelijke presentatievaardigheden
-en potentieel om verder te groeien richting een professionele presentatieaanpak.
-"""
-
-    return feedback_samenvatting.strip()
-
-# =========================
-# PDF STYLING
-# =========================
-
-def maak_styles():
-
-    styles = getSampleStyleSheet()
-
-    title_style = ParagraphStyle(
-        "TitleStyle",
-        parent=styles["Heading1"],
-        fontSize=26,
-        leading=30,
-        textColor=colors.HexColor("#1F3A5F"),
-        alignment=TA_CENTER,
-        spaceAfter=20
-    )
-
-    subtitle_style = ParagraphStyle(
-        "SubtitleStyle",
-        parent=styles["BodyText"],
-        fontSize=12,
-        leading=18,
-        textColor=colors.HexColor("#5B6575"),
-        alignment=TA_CENTER,
-        spaceAfter=30
-    )
-
-    heading_style = ParagraphStyle(
-        "HeadingStyle",
-        parent=styles["Heading2"],
-        fontSize=18,
-        leading=24,
-        textColor=colors.HexColor("#1F3A5F"),
-        spaceBefore=20,
-        spaceAfter=12
-    )
-
-    body_style = ParagraphStyle(
-        "BodyStyle",
-        parent=styles["BodyText"],
-        fontSize=11,
-        leading=22,
-        textColor=colors.HexColor("#333333"),
-        alignment=TA_LEFT
-    )
-
-    small_style = ParagraphStyle(
-        "SmallStyle",
-        parent=styles["BodyText"],
-        fontSize=9,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
+    if len(verbeter_zinnen) == 0:
+        verbeter_zinnen.append(
+            "De presentatie heeft een sterke basis en kan verder verfijnd worden."
+        )
 
     return {
-        "title": title_style,
-        "subtitle": subtitle_style,
-        "heading": heading_style,
-        "body": body_style,
-        "small": small_style
+        "gemiddelde": avg,
+        "positief": positieve_zinnen,
+        "verbeter": verbeter_zinnen
     }
 
 # =========================
-# PDF EXPORT
+# EXTRA DESIGN ELEMENTEN
 # =========================
 
-def maak_pdf(groep, scores, klas_scores, rapport):
+from reportlab.platypus import (
+    KeepTogether
+)
+
+# =========================
+# NIEUWE PDF EXPORT
+# =========================
+
+def maak_pdf(groep, scores, klas_scores, analyse):
 
     buffer = io.BytesIO()
 
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=40
+        rightMargin=45,
+        leftMargin=45,
+        topMargin=40,
+        bottomMargin=35
     )
 
     styles = maak_styles()
 
     content = []
 
+    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+
     # =========================
-    # TITEL
+    # COVER HEADER
     # =========================
 
-    content.append(
-        Paragraph(
-            "Peer Feedback Rapport",
-            styles["title"]
-        )
+    titel_style = ParagraphStyle(
+        "Titel",
+        parent=styles["title"],
+        fontSize=28,
+        leading=34,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#16324F")
+    )
+
+    groep_style = ParagraphStyle(
+        "Groep",
+        parent=styles["body"],
+        fontSize=15,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#5B6575"),
+        leading=24
     )
 
     datum = datetime.now().strftime("%d/%m/%Y")
 
+    content.append(Spacer(1, 25))
+
+    content.append(
+        Paragraph(
+            "Peer Feedback Rapport",
+            titel_style
+        )
+    )
+
+    content.append(Spacer(1, 10))
+
     content.append(
         Paragraph(
             f"{groep}<br/>{datum}",
-            styles["subtitle"]
+            groep_style
         )
     )
+
+    content.append(Spacer(1, 30))
+
+    # STRAKKE LIJN
 
     content.append(
         HRFlowable(
             width="100%",
-            thickness=1,
-            color=colors.HexColor("#D9D9D9")
+            thickness=1.2,
+            color=colors.HexColor("#D6DCE5")
         )
     )
 
     content.append(Spacer(1, 25))
 
     # =========================
-    # RADAR CHART
+    # SCORE BADGE
     # =========================
 
-    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+    avg = analyse["gemiddelde"]
 
-    img = radar_pdf(scores, labels)
-
-    chart = Image(
-        img,
-        width=360,
-        height=360
+    score_table = Table(
+        [[f"Gemiddelde score\n{avg}/7"]],
+        colWidths=[180],
+        rowHeights=[75]
     )
 
-    content.append(chart)
+    score_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#16324F")),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("FONTSIZE", (0, 0), (-1, -1), 20),
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+    ]))
+
+    content.append(score_table)
 
     content.append(Spacer(1, 30))
 
     # =========================
-    # VERGELIJKING TABEL
+    # RADAR CHART IN CARD
     # =========================
+
+    chart = radar_pdf(scores, labels)
+
+    img = Image(
+        chart,
+        width=360,
+        height=360
+    )
+
+    chart_table = Table(
+        [[img]],
+        colWidths=[470]
+    )
+
+    chart_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#D9E1EA")),
+        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+        ("TOPPADDING", (0, 0), (-1, -1), 15),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 15),
+        ("LEFTPADDING", (0, 0), (-1, -1), 20),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 20),
+    ]))
+
+    content.append(chart_table)
+
+    content.append(Spacer(1, 30))
+
+    # =========================
+    # VERGELIJKINGSTABEL
+    # =========================
+
+    heading_style = ParagraphStyle(
+        "Heading",
+        parent=styles["heading"],
+        fontSize=18,
+        textColor=colors.HexColor("#16324F"),
+        spaceAfter=16
+    )
 
     content.append(
         Paragraph(
             "Vergelijking met klasgemiddelde",
-            styles["heading"]
+            heading_style
         )
     )
 
     tabel_data = [
-        ["Onderdeel", "Groep", "Klasgemiddelde"],
+        ["Onderdeel", "Groep", "Klas"]
     ]
 
     for i, label in enumerate(labels):
@@ -361,70 +386,155 @@ def maak_pdf(groep, scores, klas_scores, rapport):
             f"{round(klas_scores[i],1)}/7"
         ])
 
-    table = Table(
+    vergelijking = Table(
         tabel_data,
-        colWidths=[180, 120, 120]
+        colWidths=[220, 100, 100]
     )
 
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3A5F")),
+    vergelijking.setStyle(TableStyle([
+
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#16324F")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, 0), 11),
 
-        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F7F9FC")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F8FAFC")),
 
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9D9D9")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#DCE3EB")),
 
         ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
         ("TOPPADDING", (0, 1), (-1, -1), 8),
         ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
 
-        ("ALIGN", (1, 1), (-1, -1), "CENTER")
+        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+
     ]))
 
-    content.append(table)
+    content.append(vergelijking)
 
-    content.append(Spacer(1, 30))
+    content.append(Spacer(1, 35))
 
     # =========================
-    # AI ANALYSE
+    # FEEDBACK BLOKKEN
     # =========================
 
-    content.append(
-        Paragraph(
-            "Samenvatting van de feedback",
-            styles["heading"]
-        )
+    box_title = ParagraphStyle(
+        "BoxTitle",
+        parent=styles["body"],
+        fontSize=15,
+        textColor=colors.white,
+        leading=18,
+        alignment=TA_LEFT
     )
 
-    paragrafen = rapport.split("\n")
+    box_text = ParagraphStyle(
+        "BoxText",
+        parent=styles["body"],
+        fontSize=11,
+        leading=20,
+        textColor=colors.HexColor("#2B2B2B")
+    )
 
-    for p in paragrafen:
+    # GOEDE PUNTEN
 
-        p = p.strip()
+    positieve_html = "<br/><br/>".join([
+        f"• {punt}" for punt in analyse["positief"]
+    ])
 
-        if p:
-            content.append(
-                Paragraph(
-                    p,
-                    styles["body"]
-                )
+    positief_blok = Table(
+        [[
+            Paragraph(
+                "<b>Sterke punten</b>",
+                box_title
             )
+        ],
+        [
+            Paragraph(
+                positieve_html,
+                box_text
+            )
+        ]],
+        colWidths=[470]
+    )
 
-            content.append(Spacer(1, 10))
+    positief_blok.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2F6B3B")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F4FBF5")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#D7E9DA")),
+        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+
+        ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+
+        ("TOPPADDING", (0, 1), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    content.append(positief_blok)
 
     content.append(Spacer(1, 20))
+
+    # VERBETERPUNTEN
+
+    verbeter_html = "<br/><br/>".join([
+        f"• {punt}" for punt in analyse["verbeter"]
+    ])
+
+    verbeter_blok = Table(
+        [[
+            Paragraph(
+                "<b>Verbeterpunten</b>",
+                box_title
+            )
+        ],
+        [
+            Paragraph(
+                verbeter_html,
+                box_text
+            )
+        ]],
+        colWidths=[470]
+    )
+
+    verbeter_blok.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#A14B2A")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#FFF8F5")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#F0D7CC")),
+        ("ROUNDEDCORNERS", [12, 12, 12, 12]),
+
+        ("TOPPADDING", (0, 0), (-1, 0), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+
+        ("TOPPADDING", (0, 1), (-1, -1), 14),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 14),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    content.append(verbeter_blok)
+
+    content.append(Spacer(1, 35))
 
     # =========================
     # FOOTER
     # =========================
 
+    footer = ParagraphStyle(
+        "Footer",
+        parent=styles["body"],
+        alignment=TA_CENTER,
+        fontSize=9,
+        textColor=colors.HexColor("#7D8793")
+    )
+
     content.append(
         HRFlowable(
             width="100%",
             thickness=1,
-            color=colors.HexColor("#D9D9D9")
+            color=colors.HexColor("#D9DDE3")
         )
     )
 
@@ -433,7 +543,7 @@ def maak_pdf(groep, scores, klas_scores, rapport):
     content.append(
         Paragraph(
             "Automatisch gegenereerd rapport • Peer Feedback Tool",
-            styles["small"]
+            footer
         )
     )
 
@@ -442,7 +552,6 @@ def maak_pdf(groep, scores, klas_scores, rapport):
     buffer.seek(0)
 
     return buffer
-
 # =========================
 # UI
 # =========================
