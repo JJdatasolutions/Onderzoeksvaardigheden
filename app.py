@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import random
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,11 +12,14 @@ from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
-    Image
+    Image,
+    Table,
+    TableStyle
 )
 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
 
 # =========================
 # CONFIG
@@ -52,7 +54,7 @@ def load_data():
 df = load_data()
 
 # =========================
-# STELLINGEN (UITGEBREID)
+# STELLINGEN (ALLE ZICHTBAAR)
 # =========================
 
 positieve_opties = [
@@ -97,21 +99,20 @@ def radar(scores, klas_scores, labels):
         r=klas_scores + [klas_scores[0]],
         theta=labels + [labels[0]],
         fill='toself',
-        name="Klas",
-        opacity=0.2
+        name="Klasgemiddelde"
     ))
 
     fig.add_trace(go.Scatterpolar(
         r=scores + [scores[0]],
         theta=labels + [labels[0]],
         fill='toself',
-        name="Groep",
-        opacity=0.7
+        name="Groep"
     ))
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
-        height=500
+        height=500,
+        showlegend=True   # 👈 belangrijk
     )
 
     return fig
@@ -131,16 +132,13 @@ def analyseer_groep(groep_df):
     for col in ["werkpunt_1","werkpunt_2","werkpunt_3"]:
         werkpunt += groep_df[col].dropna().tolist()
 
-    pos_count = Counter(positief)
-    neg_count = Counter(werkpunt)
-
-    top_pos = [x[0] for x in pos_count.most_common(5)]
-    top_neg = [x[0] for x in neg_count.most_common(5)]
-
-    return top_pos, top_neg
+    return (
+        [x[0] for x in Counter(positief).most_common(5)],
+        [x[0] for x in Counter(werkpunt).most_common(5)]
+    )
 
 # =========================
-# PDF RADAR
+# PDF RADAR (met LEGEND)
 # =========================
 
 def radar_pdf(scores, klas_scores, labels):
@@ -153,15 +151,18 @@ def radar_pdf(scores, klas_scores, labels):
 
     fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
 
-    ax.plot(angles, klas_scores, linestyle="dashed")
+    ax.plot(angles, klas_scores, linestyle="dashed", label="Klasgemiddelde")
     ax.fill(angles, klas_scores, alpha=0.1)
 
-    ax.plot(angles, scores)
+    ax.plot(angles, scores, label="Groep")
     ax.fill(angles, scores, alpha=0.3)
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
-    ax.set_ylim(0,7)
+    ax.set_ylim(0, 7)
+
+    # ✅ LEGEND TOEGEVOEGD
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png", dpi=200, bbox_inches="tight")
@@ -184,20 +185,23 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
 
     content = []
 
+    # TITLE
     content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
     content.append(Spacer(1, 20))
 
+    # RADAR
     img = radar_pdf(scores, klas_scores, labels)
     content.append(Image(img, width=400, height=400))
     content.append(Spacer(1, 20))
 
+    # ANALYSE
     top_pos, top_neg = analyseer_groep(groep_df)
 
-    content.append(Paragraph("STERKE PUNTEN (door klas)", styles["Heading2"]))
+    content.append(Paragraph("STERKE PUNTEN", styles["Heading2"]))
     content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
     content.append(Spacer(1, 10))
 
-    content.append(Paragraph("WERKPUNTEN (door klas)", styles["Heading2"]))
+    content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
     content.append(Paragraph(", ".join(top_neg) if top_neg else "Geen data", styles["BodyText"]))
 
     doc.build(content)
@@ -229,11 +233,17 @@ if mode == "✍️ Leerlingen":
         visual = st.slider("Visual", 1, 7, 5)
         vragen = st.slider("Vragen", 1, 7, 5)
 
-        st.subheader("👍 Max 3 sterke punten")
-        positief = st.multiselect("Positief", positieve_opties, max_selections=3)
+        st.subheader("👍 Positieve punten")
+        positief = [
+            opt for opt in positieve_opties
+            if st.checkbox(opt)
+        ][:3]
 
-        st.subheader("👎 Max 3 werkpunten")
-        werkpunt = st.multiselect("Werkpunten", negatieve_opties, max_selections=3)
+        st.subheader("👎 Werkpunten")
+        werkpunt = [
+            opt for opt in negatieve_opties
+            if st.checkbox(opt)
+        ][:3]
 
         submit = st.form_submit_button("Opslaan")
 
@@ -293,12 +303,8 @@ if mode == "📊 Leerkracht":
         df["vragen"].mean()
     ]
 
-    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
-
-    st.plotly_chart(radar(scores, klas_scores, labels), use_container_width=True)
-
-    st.subheader("Analyse")
-    st.write("Automatische analyse op basis van 20+ leerlingen feedback")
+    st.plotly_chart(radar(scores, klas_scores, ["Presence","Taal","Contact","Visual","Vragen"]),
+                    use_container_width=True)
 
     pdf = maak_pdf(groep, scores, klas_scores, groep_df)
 
