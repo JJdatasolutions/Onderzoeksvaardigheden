@@ -3,19 +3,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import numpy as np
-from datetime import datetime
 import os
 import io
-from collections import Counter
+from collections import Counter, defaultdict
 from wordcloud import WordCloud
+from datetime import datetime
 
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Image
-)
-
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 
@@ -23,22 +17,9 @@ from reportlab.lib.pagesizes import A4
 # CONFIG
 # =========================
 
-st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
+st.set_page_config(page_title="🎓 AI Feedback Dashboard", layout="wide")
 
 BESTAND = "peer_feedback.csv"
-LEERKRACHT_PIN = "1234"
-
-GROEPEN = [
-    "Asa en Stella",
-    "Alexander en Boudewijn",
-    "Minne, Anne en Liam",
-    "Ella, Lena en Laura",
-    "Casper, Juul en Linus",
-    "Axl, Sam en Arno",
-    "Eowyn en Liz",
-    "Batool en Alyssa",
-    "Sadie en Anastasiia"
-]
 
 # =========================
 # DATA
@@ -52,96 +33,54 @@ def load_data():
 df = load_data()
 
 # =========================
-# OPTIES
+# THEMA CLUSTERING (KEY UPGRADE)
 # =========================
 
-positieve_opties = [
-    "Duidelijke presentatie","Goede samenwerking","Sterke visuals","Goede structuur",
-    "Zelfzeker gebracht","Goede timing","Goede uitleg","Goede lichaamstaal",
-    "Sterke voorbereiding","Publiek betrokken","Duidelijke stem","Goede interactie"
-]
+THEMAS = {
+    "structuur": ["structuur", "opbouw", "logisch", "volgorde"],
+    "presentatie": ["presentatie", "spreken", "stem", "duidelijk"],
+    "interactie": ["publiek", "oogcontact", "vragen", "betrokken"],
+    "voorbereiding": ["voorbereiding", "geoefend", "kennis"],
+    "tempo": ["snel", "traag", "timing", "tijd"],
+    "samenwerking": ["samenwerking", "team", "groep"]
+}
 
-negatieve_opties = [
-    "Te snel gepresenteerd","Weinig oogcontact","Onvoldoende structuur","Zenuwachtig",
-    "Te weinig uitleg","Slechte timing","Onduidelijke uitleg","Monotone stem",
-    "Te weinig voorbereiding","Publiek niet betrokken","Onzeker gedrag","Slides te druk"
-]
+def cluster_themas(woorden):
+    clusters = defaultdict(int)
 
-# =========================
-# MAX 3 SELECTIE
-# =========================
+    for w in woorden:
+        wl = w.lower()
 
-def checkbox_limited(options, prefix):
-    selected = []
-    cols = st.columns(3)
+        matched = False
+        for thema, keywords in THEMAS.items():
+            if any(k in wl for k in keywords):
+                clusters[thema] += 1
+                matched = True
+                break
 
-    temp = []
+        if not matched:
+            clusters["overig"] += 1
 
-    for i, opt in enumerate(options):
-
-        disabled = len(temp) >= 3
-
-        checked = cols[i % 3].checkbox(
-            opt,
-            key=f"{prefix}_{i}",
-            disabled=disabled
-        )
-
-        if checked:
-            temp.append(opt)
-
-    return temp[:3]
+    return clusters
 
 # =========================
-# RADAR
-# =========================
-
-def radar(scores, klas_scores, labels):
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatterpolar(
-        r=klas_scores + [klas_scores[0]],
-        theta=labels + [labels[0]],
-        fill='toself',
-        name="Klasgemiddelde"
-    ))
-
-    fig.add_trace(go.Scatterpolar(
-        r=scores + [scores[0]],
-        theta=labels + [labels[0]],
-        fill='toself',
-        name="Groep"
-    ))
-
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
-        height=500,
-        showlegend=True
-    )
-
-    return fig
-
-# =========================
-# WORDCLOUDS
+# WORDCLOUD (IMPROVED)
 # =========================
 
 def maak_wordcloud(woorden, kleur):
 
     if len(woorden) == 0:
-        woorden = ["geen_data"]
+        woorden = ["geen_feedback"]
 
-    # 👉 frequenties tellen
     freq = Counter(woorden)
 
-    # 👉 WordCloud werkt beter met dictionary input
     wc = WordCloud(
         width=900,
         height=450,
         background_color="white",
         colormap=kleur,
         collocations=False,
-        prefer_horizontal=1.0  # alles horizontaal, netjes
+        prefer_horizontal=1.0
     ).generate_from_frequencies(freq)
 
     fig, ax = plt.subplots()
@@ -154,80 +93,67 @@ def maak_wordcloud(woorden, kleur):
     plt.close()
 
     return buf
-# =========================
-# ANALYSE
-# =========================
-
-def analyseer_groep(groep_df):
-
-    positief = []
-    werkpunt = []
-
-    for col in ["positief_1","positief_2","positief_3"]:
-        positief += groep_df[col].dropna().tolist()
-
-    for col in ["werkpunt_1","werkpunt_2","werkpunt_3"]:
-        werkpunt += groep_df[col].dropna().tolist()
-
-    return (
-        [x[0] for x in Counter(positief).most_common(5)],
-        [x[0] for x in Counter(werkpunt).most_common(5)]
-    )
 
 # =========================
-# PDF EXPORT
+# AI-STYLE ANALYSE (NO API)
 # =========================
 
-def maak_pdf(groep, scores, klas_scores, groep_df):
+def slimme_analyse(positief, werkpunt, scores):
+
+    pos_clusters = cluster_themas(positief)
+    neg_clusters = cluster_themas(werkpunt)
+
+    top_pos = sorted(pos_clusters.items(), key=lambda x: x[1], reverse=True)
+    top_neg = sorted(neg_clusters.items(), key=lambda x: x[1], reverse=True)
+
+    avg = round(sum(scores)/len(scores),1)
+
+    tekst = f"""
+De groep behaalt een gemiddelde score van {avg}/7.
+
+Sterke punten situeren zich vooral in {top_pos[0][0] if top_pos else "geen duidelijke thema's"}.
+
+Werkpunten liggen voornamelijk bij {top_neg[0][0] if top_neg else "geen duidelijke thema's"}.
+
+De feedback toont een duidelijk beeld van de klasdynamiek. Er is een sterke basis aanwezig, maar vooral rond {top_neg[0][0] if top_neg else "verschillende aspecten"} is nog groeimarge.
+
+Aanbevolen focus: verbeter {top_neg[0][0] if top_neg else "algemene structuur en communicatie"} in volgende presentaties.
+"""
+
+    return tekst, pos_clusters, neg_clusters
+
+# =========================
+# PDF
+# =========================
+
+def maak_pdf(groep, scores, klas_scores, positief, werkpunt):
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
 
-    labels = ["Presence","Taal","Contact","Visual","Vragen"]
-
     content = []
 
-    content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
+    content.append(Paragraph(f"AI Feedback Rapport - {groep}", styles["Title"]))
     content.append(Spacer(1, 20))
 
-    # RADAR
-    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-    angles += angles[:1]
+    analyse, pos_c, neg_c = slimme_analyse(positief, werkpunt, scores)
 
-    scores_plot = scores + scores[:1]
-    klas_plot = klas_scores + klas_scores[:1]
+    # radar + wordcloud visuals
+    labels = ["Presence","Taal","Contact","Visual","Vragen"]
 
-    fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
-
-    ax.plot(angles, klas_plot, linestyle="dashed", label="Klas")
-    ax.plot(angles, scores_plot, label="Groep")
-    ax.fill(angles, scores_plot, alpha=0.3)
-
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels)
-    ax.set_ylim(0, 7)
-    ax.legend()
-
-    img = io.BytesIO()
-    plt.savefig(img, format="png", dpi=200, bbox_inches="tight")
-    img.seek(0)
-    plt.close()
-
-    content.append(Image(img, width=400, height=400))
+    content.append(Paragraph("Analyse", styles["Heading2"]))
+    content.append(Paragraph(analyse, styles["BodyText"]))
     content.append(Spacer(1, 15))
 
-    # WORDCLOUDS
-    top_pos, top_neg = analyseer_groep(groep_df)
+    pos_img = maak_wordcloud(positief, "Greens")
+    neg_img = maak_wordcloud(werkpunt, "Reds")
 
-    pos_img = maak_wordcloud(top_pos, "Greens")
-    neg_img = maak_wordcloud(top_neg, "Reds")
-
-    content.append(Paragraph("POSITIEVE FEEDBACK", styles["Heading2"]))
+    content.append(Paragraph("Positieve feedback", styles["Heading2"]))
     content.append(Image(pos_img, width=300, height=150))
     content.append(Spacer(1, 10))
 
-    content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
+    content.append(Paragraph("Werkpunten", styles["Heading2"]))
     content.append(Image(neg_img, width=300, height=150))
 
     doc.build(content)
@@ -236,76 +162,29 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     return buffer
 
 # =========================
-# UI
+# UI DEMO (MINIMAL FOR CORE LOGIC)
 # =========================
 
-st.title("🎓 Peer Feedback Tool")
+st.title("🎓 AI Feedback Engine (Upgrade)")
 
-mode = st.radio("Kies modus", ["✍️ Leerlingen", "📊 Leerkracht"])
+groep = st.text_input("Groep")
 
-# =========================
-# LEERLINGEN
-# =========================
+if st.button("Genereer analyse"):
 
-if mode == "✍️ Leerlingen":
-
-    groep = st.selectbox("Groep", GROEPEN)
-
-    with st.form("form"):
-
-        presence = st.slider("Presence", 1, 7, 5)
-        taal = st.slider("Taal", 1, 7, 5)
-        contact = st.slider("Contact", 1, 7, 5)
-        visual = st.slider("Visual", 1, 7, 5)
-        vragen = st.slider("Vragen", 1, 7, 5)
-
-        st.markdown("### 👍 Positieve punten (max 3)")
-        positief = checkbox_limited(positieve_opties, "pos")
-
-        st.markdown("### 👎 Werkpunten (max 3)")
-        werkpunt = checkbox_limited(negatieve_opties, "neg")
-
-        submit = st.form_submit_button("Opslaan")
-
-    if submit:
-
-        new = {
-            "groep": groep,
-            "presence": presence,
-            "taal": taal,
-            "contact": contact,
-            "visual": visual,
-            "vragen": vragen,
-
-            "positief_1": positief[0] if len(positief)>0 else None,
-            "positief_2": positief[1] if len(positief)>1 else None,
-            "positief_3": positief[2] if len(positief)>2 else None,
-
-            "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
-            "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
-            "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
-
-            "tijdstip": datetime.now()
-        }
-
-        df2 = pd.concat([df, pd.DataFrame([new])])
-        df2.to_csv(BESTAND, index=False)
-
-        st.success("Opgeslagen!")
-
-# =========================
-# LEERKRACHT
-# =========================
-
-if mode == "📊 Leerkracht":
-
-    pin = st.text_input("PIN", type="password")
-    if pin != LEERKRACHT_PIN:
+    if len(df) == 0:
+        st.warning("Geen data")
         st.stop()
 
-    groep = st.selectbox("Groep", GROEPEN)
-
     groep_df = df[df["groep"] == groep]
+
+    positief = []
+    werkpunt = []
+
+    for c in ["positief_1","positief_2","positief_3"]:
+        positief += groep_df[c].dropna().tolist()
+
+    for c in ["werkpunt_1","werkpunt_2","werkpunt_3"]:
+        werkpunt += groep_df[c].dropna().tolist()
 
     scores = [
         groep_df["presence"].mean(),
@@ -315,23 +194,12 @@ if mode == "📊 Leerkracht":
         groep_df["vragen"].mean()
     ]
 
-    klas_scores = [
-        df["presence"].mean(),
-        df["taal"].mean(),
-        df["contact"].mean(),
-        df["visual"].mean(),
-        df["vragen"].mean()
-    ]
+    st.write(slimme_analyse(positief, werkpunt, scores)[0])
 
-    st.plotly_chart(
-        radar(scores, klas_scores, ["Presence","Taal","Contact","Visual","Vragen"]),
-        use_container_width=True
-    )
-
-    pdf = maak_pdf(groep, scores, klas_scores, groep_df)
+    pdf = maak_pdf(groep, scores, scores, positief, werkpunt)
 
     st.download_button(
-        "Download PDF",
+        "Download AI rapport",
         data=pdf,
         file_name=f"rapport_{groep}.pdf",
         mime="application/pdf"
