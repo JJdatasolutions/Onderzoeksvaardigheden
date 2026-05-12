@@ -133,17 +133,65 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    hf_token = st.secrets["HF_TOKEN"]
+    hf_token = st.secrets.get("HF_TOKEN")
+
+    # 🔒 fallback als geen token
+    if not hf_token:
+        return {
+            "gemiddelde": avg,
+            "feedback": "Geen HF_TOKEN gevonden in Streamlit Secrets.",
+            "positief": [],
+            "verbeter": [],
+            "profiel": "Onbekend"
+        }
+
+    url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+
+    headers = {
+        "Authorization": f"Bearer {hf_token}"
+    }
+
+    prompt = f"""
+Je bent een ervaren docent en presentatiecoach.
+
+Analyseer deze leerlingfeedback en geef een duidelijke, gestructureerde evaluatie.
+
+PEER FEEDBACK:
+{tekst[:1500]}
+
+SCORES:
+- Presence: {scores[0]}
+- Taal: {scores[1]}
+- Contact: {scores[2]}
+- Visual: {scores[3]}
+- Vragen: {scores[4]}
+
+KLASGEMIDDELDE:
+- Presence: {klas_scores[0]}
+- Taal: {klas_scores[1]}
+- Contact: {klas_scores[2]}
+- Visual: {klas_scores[3]}
+- Vragen: {klas_scores[4]}
+
+STRUCTUUR ANTWOORD:
+1. Samenvatting (±120-150 woorden)
+2. Sterke punten (3 bullets)
+3. Verbeterpunten (3 bullets)
+4. Eindconclusie (1 zin)
+"""
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 400,
+            "temperature": 0.7
+        }
+    }
 
     try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-            headers={"Authorization": f"Bearer {hf_token}"},
-            json={"inputs": tekst[:1500]},
-            timeout=30
-        )
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
 
-        # 🔴 BELANGRIJK: eerst raw text checken
+        # 🔴 HTTP error check
         if response.status_code != 200:
             return {
                 "gemiddelde": avg,
@@ -153,19 +201,9 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
                 "profiel": "Onbekend"
             }
 
-        # 🔴 probeer JSON veilig te parsen
-        try:
-            data = response.json()
-        except Exception:
-            return {
-                "gemiddelde": avg,
-                "feedback": f"Geen JSON response: {response.text[:200]}",
-                "positief": [],
-                "verbeter": [],
-                "profiel": "Onbekend"
-            }
+        data = response.json()
 
-        # 🔴 API error object
+        # 🔴 error response check
         if isinstance(data, dict) and "error" in data:
             return {
                 "gemiddelde": avg,
@@ -185,12 +223,12 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
                 "profiel": "Onbekend"
             }
 
-        output = data[0].get("generated_text", "Geen output")
+        output = data[0].get("generated_text", "Geen output van AI.")
 
     except Exception as e:
         return {
             "gemiddelde": avg,
-            "feedback": f"Request error: {str(e)}",
+            "feedback": f"AI request fout: {str(e)}",
             "positief": [],
             "verbeter": [],
             "profiel": "Onbekend"
