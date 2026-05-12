@@ -131,18 +131,18 @@ def maak_wordcloud(woorden, kleur):
     if len(woorden) == 0:
         woorden = ["geen_data"]
 
-    # 👉 BELANGRIJK: spaties behouden via underscore
-    woorden_clean = [w.replace(" ", "_") for w in woorden]
+    # 👉 frequenties tellen
+    freq = Counter(woorden)
 
-    tekst = " ".join(woorden_clean)
-
+    # 👉 WordCloud werkt beter met dictionary input
     wc = WordCloud(
-        width=800,
-        height=400,
+        width=900,
+        height=450,
         background_color="white",
         colormap=kleur,
-        collocations=False
-    ).generate(tekst)
+        collocations=False,
+        prefer_horizontal=1.0  # alles horizontaal, netjes
+    ).generate_from_frequencies(freq)
 
     fig, ax = plt.subplots()
     ax.imshow(wc, interpolation="bilinear")
