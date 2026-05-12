@@ -67,23 +67,19 @@ negatieve_opties = [
 ]
 
 # =========================
-# UI HELPER (MAX 3 LOGICA)
+# MAX 3 SELECTIE UI
 # =========================
 
 def checkbox_limited(options, prefix):
     selected = []
-
     cols = st.columns(3)
 
-    # eerst tellen wat al gekozen is
     temp = []
 
     for i, opt in enumerate(options):
-        # disable als al 3 gekozen EN deze optie is NIET al gekozen
-        disabled = False
 
-        if len(selected) >= 3:
-            disabled = True
+        # disable zodra 3 gekozen zijn
+        disabled = len(temp) >= 3
 
         checked = cols[i % 3].checkbox(
             opt,
@@ -94,7 +90,6 @@ def checkbox_limited(options, prefix):
         if checked:
             temp.append(opt)
 
-    # extra safety: max 3 houden
     return temp[:3]
 
 # =========================
@@ -126,6 +121,81 @@ def radar(scores, klas_scores, labels):
     )
 
     return fig
+
+# =========================
+# ANALYSE PDF
+# =========================
+
+def analyseer_groep(groep_df):
+
+    positief = []
+    werkpunt = []
+
+    for col in ["positief_1","positief_2","positief_3"]:
+        positief += groep_df[col].dropna().tolist()
+
+    for col in ["werkpunt_1","werkpunt_2","werkpunt_3"]:
+        werkpunt += groep_df[col].dropna().tolist()
+
+    return (
+        [x[0] for x in Counter(positief).most_common(5)],
+        [x[0] for x in Counter(werkpunt).most_common(5)]
+    )
+
+# =========================
+# PDF EXPORT
+# =========================
+
+def maak_pdf(groep, scores, klas_scores, groep_df):
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+
+    labels = ["Presence","Taal","Contact","Visual","Vragen"]
+
+    content = []
+
+    content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
+    content.append(Spacer(1, 20))
+
+    # radar image
+    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
+    angles += angles[:1]
+
+    scores_plot = scores + scores[:1]
+    klas_plot = klas_scores + klas_scores[:1]
+
+    fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
+    ax.plot(angles, klas_plot, linestyle="dashed", label="Klas")
+    ax.plot(angles, scores_plot, label="Groep")
+    ax.fill(angles, scores_plot, alpha=0.3)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels)
+    ax.set_ylim(0,7)
+    ax.legend()
+
+    img = io.BytesIO()
+    plt.savefig(img, format="png", dpi=200, bbox_inches="tight")
+    img.seek(0)
+    plt.close()
+
+    content.append(Image(img, width=400, height=400))
+    content.append(Spacer(1, 20))
+
+    top_pos, top_neg = analyseer_groep(groep_df)
+
+    content.append(Paragraph("STERKE PUNTEN", styles["Heading2"]))
+    content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
+    content.append(Spacer(1, 10))
+
+    content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
+    content.append(Paragraph(", ".join(top_neg) if top_neg else "Geen data", styles["BodyText"]))
+
+    doc.build(content)
+    buffer.seek(0)
+
+    return buffer
 
 # =========================
 # UI
@@ -186,7 +256,7 @@ if mode == "✍️ Leerlingen":
         st.success("Opgeslagen!")
 
 # =========================
-# LEERKRACHT (zelfde als eerder)
+# LEERKRACHT
 # =========================
 
 if mode == "📊 Leerkracht":
@@ -218,4 +288,13 @@ if mode == "📊 Leerkracht":
     st.plotly_chart(
         radar(scores, klas_scores, ["Presence","Taal","Contact","Visual","Vragen"]),
         use_container_width=True
+    )
+
+    pdf = maak_pdf(groep, scores, klas_scores, groep_df)
+
+    st.download_button(
+        "Download PDF",
+        data=pdf,
+        file_name=f"rapport_{groep}.pdf",
+        mime="application/pdf"
     )
