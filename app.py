@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import random
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import numpy as np
@@ -136,71 +137,102 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
     # -------------------------
-    # 1. Analyse per criterium
+    # 1. Sterktes & zwaktes (data-driven)
     # -------------------------
 
     sterk = []
     zwak = []
 
     for i, s in enumerate(scores):
-        klas = klas_scores[i]
-
-        if s >= 6 and s >= klas:
+        if s >= 6:
             sterk.append(labels[i])
-        elif s < klas:
+        elif s < klas_scores[i]:
             zwak.append(labels[i])
 
     # -------------------------
-    # 2. Tekstanalyse (ECHTE variatie per groep)
+    # 2. Tekstanalyse (betere signalen)
     # -------------------------
 
-    tekst_lower = tekst.lower()
+    tekst_l = tekst.lower()
 
-    positieve_woorden = ["goed", "sterk", "duidelijk", "vlot", "interessant", "fijn", "goed voorbereid"]
-    negatieve_woorden = ["onduidelijk", "onzeker", "stil", "chaotisch", "moeilijk", "te snel", "te traag"]
+    positieve_signalen = sum([
+        "goed" in tekst_l,
+        "sterk" in tekst_l,
+        "duidelijk" in tekst_l,
+        "vlot" in tekst_l,
+        "interessant" in tekst_l,
+        "goed voorbereid" in tekst_l
+    ])
 
-    pos_count = sum(1 for w in positieve_woorden if w in tekst_lower)
-    neg_count = sum(1 for w in negatieve_woorden if w in tekst_lower)
+    verbeter_signalen = sum([
+        "onduidelijk" in tekst_l,
+        "chaotisch" in tekst_l,
+        "stil" in tekst_l,
+        "te snel" in tekst_l,
+        "te traag" in tekst_l,
+        "onzeker" in tekst_l
+    ])
 
-    if pos_count > neg_count:
-        toon = "overwegend positief"
-    elif neg_count > pos_count:
+    # -------------------------
+    # 3. Dynamische toon (belangrijk!)
+    # -------------------------
+
+    if positieve_signalen > verbeter_signalen:
+        toon = "positief"
+    elif verbeter_signalen > positieve_signalen:
         toon = "kritisch"
     else:
         toon = "gemengd"
 
     # -------------------------
-    # 3. Dynamische samenvatting (verschilt per groep!)
+    # 4. Variabele zinnen (DIT maakt het “AI-achtig”)
     # -------------------------
 
-    samenvatting = f"""
-De groep behaalt een gemiddelde score van {avg}/7.
+    intro_templates = [
+        f"De groep behaalt een gemiddelde score van {avg}/7.",
+        f"De presentatie wordt beoordeeld met een gemiddelde van {avg}/7.",
+        f"De globale evaluatie komt uit op {avg}/7."
+    ]
 
-De feedback is {toon} en toont duidelijke aandacht voor presentatievaardigheden.
-Er is vooral commentaar op {', '.join(zwak) if zwak else 'een stabiel niveau over alle onderdelen'}.
-"""
+    analyse_templates = {
+        "positief": [
+            "De feedback is overwegend positief en toont een sterke uitvoering.",
+            "Er is duidelijk een goede voorbereiding zichtbaar in de presentatie.",
+            "De groep komt zelfzeker en gestructureerd over."
+        ],
+        "kritisch": [
+            "De feedback bevat enkele aandachtspunten die verbetering vragen.",
+            "Er zijn duidelijke groeimogelijkheden in de uitvoering.",
+            "De presentatie wisselt tussen sterke en zwakkere momenten."
+        ],
+        "gemengd": [
+            "De feedback toont een evenwicht tussen sterke en zwakkere elementen.",
+            "Er is zowel positieve als kritische feedback gegeven.",
+            "De presentatie is wisselend in kwaliteit."
+        ]
+    }
+
+    conclusie_templates = [
+        "Dit resultaat toont een duidelijk werkpunt richting volgende presentatie.",
+        "De groep heeft een solide basis maar kan verder verfijnen.",
+        "De presentatie is in ontwikkeling en toont potentieel.",
+        "De uitvoering is sterk maar nog niet volledig consistent."
+    ]
 
     # -------------------------
-    # 4. Variabele conclusie
+    # 5. Bouw rapport
     # -------------------------
 
-    if avg >= 6:
-        conclusie = "De presentatie is sterk uitgewerkt en professioneel gebracht."
-    elif avg >= 5:
-        conclusie = "De presentatie is degelijk met ruimte voor verfijning."
-    else:
-        conclusie = "De presentatie toont duidelijke groeimogelijkheden."
-
-    # -------------------------
-    # 5. Eindrapport
-    # -------------------------
+    intro = random.choice(intro_templates)
+    analyse = random.choice(analyse_templates[toon])
+    conclusie = random.choice(conclusie_templates)
 
     feedback = f"""
 SAMENVATTING
-{samenvatting}
+{intro} {analyse}
 
 STERKE PUNTEN
-{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar een stabiel basisniveau."}
+{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar een stabiel niveau."}
 
 VERBETERPUNTEN
 {", ".join(zwak) if zwak else "Geen duidelijke zwakke punten t.o.v. klasgemiddelde."}
