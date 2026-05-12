@@ -24,7 +24,7 @@ from reportlab.lib.styles import (
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 
 # =========================
 # CONFIG
@@ -67,16 +67,30 @@ df = load_data()
 # RADAR CHART STREAMLIT
 # =========================
 
-def radar(scores, labels):
+def radar(scores, klas_scores, labels):
 
     fig = go.Figure()
+
+    # KLASGEMIDDELDE
+
+    fig.add_trace(go.Scatterpolar(
+        r=klas_scores + [klas_scores[0]],
+        theta=labels + [labels[0]],
+        fill='toself',
+        name="Klasgemiddelde",
+        opacity=0.25,
+        line=dict(width=2)
+    ))
+
+    # GROEP
 
     fig.add_trace(go.Scatterpolar(
         r=scores + [scores[0]],
         theta=labels + [labels[0]],
         fill='toself',
-        line=dict(width=3),
-        opacity=0.8
+        name="Groep",
+        opacity=0.7,
+        line=dict(width=4)
     ))
 
     fig.update_layout(
@@ -86,9 +100,15 @@ def radar(scores, labels):
                 range=[0, 7]
             )
         ),
-        showlegend=False,
-        height=500,
-        margin=dict(l=40, r=40, t=40, b=40)
+        height=550,
+        margin=dict(l=40, r=40, t=40, b=40),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.1,
+            xanchor="center",
+            x=0.5
+        )
     )
 
     return fig
@@ -97,7 +117,7 @@ def radar(scores, labels):
 # RADAR CHART PDF
 # =========================
 
-def radar_pdf(scores, labels):
+def radar_pdf(scores, klas_scores, labels):
 
     angles = np.linspace(
         0,
@@ -106,32 +126,58 @@ def radar_pdf(scores, labels):
         endpoint=False
     ).tolist()
 
+    angles += angles[:1]
+
     scores_closed = scores + scores[:1]
-    angles_closed = angles + angles[:1]
+    klas_closed = klas_scores + klas_scores[:1]
 
     fig, ax = plt.subplots(
-        figsize=(6, 6),
+        figsize=(6.5, 6.5),
         subplot_kw=dict(polar=True)
     )
 
+    # KLASGEMIDDELDE
+
     ax.plot(
-        angles_closed,
-        scores_closed,
-        linewidth=3
+        angles,
+        klas_closed,
+        linewidth=2,
+        linestyle="dashed",
+        label="Klasgemiddelde"
     )
 
     ax.fill(
-        angles_closed,
-        scores_closed,
-        alpha=0.25
+        angles,
+        klas_closed,
+        alpha=0.12
     )
 
-    ax.set_xticks(angles)
+    # GROEP
+
+    ax.plot(
+        angles,
+        scores_closed,
+        linewidth=3,
+        label="Groep"
+    )
+
+    ax.fill(
+        angles,
+        scores_closed,
+        alpha=0.30
+    )
+
+    ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=11)
 
     ax.set_ylim(0, 7)
 
     ax.grid(True)
+
+    ax.legend(
+        loc="upper right",
+        bbox_to_anchor=(1.2, 1.1)
+    )
 
     buffer = io.BytesIO()
 
@@ -158,10 +204,10 @@ def genereer_ai_feedback(scores, tekst):
 
     tekst_lower = tekst.lower()
 
-    positieve_zinnen = []
-    verbeter_zinnen = []
+    positieve_punten = []
+    verbeterpunten = []
 
-    # POSITIEVE PUNTEN
+    # POSITIEVE ANALYSE
 
     if any(w in tekst_lower for w in [
         "duidelijk",
@@ -169,29 +215,18 @@ def genereer_ai_feedback(scores, tekst):
         "structuur"
     ]):
 
-        positieve_zinnen.append(
+        positieve_punten.append(
             "De presentatie werd als duidelijk en goed gestructureerd ervaren."
         )
 
     if any(w in tekst_lower for w in [
         "zelfzeker",
-        "rustig",
-        "vlot"
+        "vlot",
+        "rustig"
     ]):
 
-        positieve_zinnen.append(
-            "De groep kwam zelfzeker en vlot over tijdens het presenteren."
-        )
-
-    if any(w in tekst_lower for w in [
-        "mooi",
-        "visual",
-        "slides",
-        "afbeelding"
-    ]):
-
-        positieve_zinnen.append(
-            "De visuele ondersteuning droeg positief bij aan de presentatie."
+        positieve_punten.append(
+            "De groep kwam zelfzeker en professioneel over tijdens het presenteren."
         )
 
     if any(w in tekst_lower for w in [
@@ -200,11 +235,31 @@ def genereer_ai_feedback(scores, tekst):
         "enthousiast"
     ]):
 
-        positieve_zinnen.append(
+        positieve_punten.append(
             "Het publiek bleef betrokken dankzij een enthousiaste presentatieaanpak."
         )
 
+    if any(w in tekst_lower for w in [
+        "slides",
+        "visual",
+        "mooi"
+    ]):
+
+        positieve_punten.append(
+            "De visuele ondersteuning versterkte de inhoud van de presentatie."
+        )
+
     # VERBETERPUNTEN
+
+    if any(w in tekst_lower for w in [
+        "tempo",
+        "sneller",
+        "trager"
+    ]):
+
+        verbeterpunten.append(
+            "Meer controle over het spreektempo kan de presentatie nog krachtiger maken."
+        )
 
     if any(w in tekst_lower for w in [
         "zachter",
@@ -212,28 +267,18 @@ def genereer_ai_feedback(scores, tekst):
         "volume"
     ]):
 
-        verbeter_zinnen.append(
-            "Werk verder aan stemvolume en verstaanbaarheid."
+        verbeterpunten.append(
+            "Extra aandacht voor stemvolume en verstaanbaarheid zou de presentatie verbeteren."
         )
 
     if any(w in tekst_lower for w in [
-        "sneller",
-        "trager",
-        "tempo"
-    ]):
-
-        verbeter_zinnen.append(
-            "Meer controle over spreektempo kan de presentatie nog sterker maken."
-        )
-
-    if any(w in tekst_lower for w in [
-        "meer",
+        "interactie",
         "vragen",
-        "interactie"
+        "meer"
     ]):
 
-        verbeter_zinnen.append(
-            "Meer interactie met het publiek zou de betrokkenheid verhogen."
+        verbeterpunten.append(
+            "Meer interactie met het publiek kan de betrokkenheid nog verhogen."
         )
 
     if any(w in tekst_lower for w in [
@@ -241,28 +286,45 @@ def genereer_ai_feedback(scores, tekst):
         "verwarrend"
     ]):
 
-        verbeter_zinnen.append(
-            "Sommige onderdelen mogen nog duidelijker uitgewerkt worden."
+        verbeterpunten.append(
+            "Sommige onderdelen mogen nog iets duidelijker uitgewerkt worden."
         )
 
     # FALLBACKS
 
-    if len(positieve_zinnen) == 0:
+    if len(positieve_punten) == 0:
 
-        positieve_zinnen.append(
+        positieve_punten.append(
             "De groep bracht een verzorgde en degelijke presentatie."
         )
 
-    if len(verbeter_zinnen) == 0:
+    if len(verbeterpunten) == 0:
 
-        verbeter_zinnen.append(
+        verbeterpunten.append(
             "De presentatie heeft een sterke basis en kan verder verfijnd worden."
         )
 
+    uitgebreide_feedback = f"""
+De presentatie behaalde een gemiddelde score van {avg}/7 en maakte in het algemeen een sterke indruk op het publiek. 
+Uit de verzamelde feedback blijkt dat de groep erin slaagde om de informatie op een duidelijke en gestructureerde manier over te brengen. 
+De presentatie kwam verzorgd over en de groep straalde voldoende zelfvertrouwen uit tijdens het spreken.
+
+Positieve elementen die regelmatig terugkwamen in de feedback waren onder andere de duidelijke uitleg, de rustige presentatiehouding 
+en de kwaliteit van de visuele ondersteuning. Verschillende leerlingen gaven aan dat de presentatie aangenaam was om naar te luisteren 
+en dat de groep goed voorbereid leek.
+
+Daarnaast zijn er ook enkele groeikansen zichtbaar. Vooral op vlak van interactie met het publiek, spreektempo en dynamiek 
+kan nog verdere vooruitgang geboekt worden. Door nog bewuster in te zetten op contact met het publiek en een krachtige spreekstijl 
+kan de presentatie nog professioneler en overtuigender worden.
+
+Globaal toont deze presentatie een sterke basis met veel potentieel voor verdere groei.
+"""
+
     return {
         "gemiddelde": avg,
-        "positief": positieve_zinnen,
-        "verbeter": verbeter_zinnen
+        "positief": positieve_punten,
+        "verbeter": verbeterpunten,
+        "feedback": uitgebreide_feedback
     }
 
 # =========================
@@ -329,7 +391,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         "Body",
         parent=styles["BodyText"],
         fontSize=11,
-        leading=20,
+        leading=21,
         textColor=colors.HexColor("#2B2B2B")
     )
 
@@ -382,9 +444,19 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     avg = analyse["gemiddelde"]
 
     score_table = Table(
-        [[f"Gemiddelde score\n{avg}/7"]],
-        colWidths=[180],
-        rowHeights=[75]
+        [[
+            Paragraph(
+                f"""
+                <para align=center>
+                <font size=12>Gemiddelde score</font><br/><br/>
+                <font size=26><b>{avg}/7</b></font>
+                </para>
+                """,
+                styles["BodyText"]
+            )
+        ]],
+        colWidths=[190],
+        rowHeights=[90]
     )
 
     score_table.setStyle(TableStyle([
@@ -392,8 +464,6 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("FONTSIZE", (0, 0), (-1, -1), 20),
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
     ]))
 
     content.append(score_table)
@@ -404,12 +474,16 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     # RADAR CHART
     # =========================
 
-    chart = radar_pdf(scores, labels)
+    chart = radar_pdf(
+        scores,
+        klas_scores,
+        labels
+    )
 
     img = Image(
         chart,
-        width=360,
-        height=360
+        width=390,
+        height=390
     )
 
     chart_table = Table(
@@ -420,10 +494,10 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     chart_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
         ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#D9E1EA")),
-        ("TOPPADDING", (0, 0), (-1, -1), 15),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 15),
-        ("LEFTPADDING", (0, 0), (-1, -1), 20),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 20),
+        ("TOPPADDING", (0, 0), (-1, -1), 18),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 18),
+        ("LEFTPADDING", (0, 0), (-1, -1), 18),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 18),
     ]))
 
     content.append(chart_table)
@@ -431,59 +505,43 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     content.append(Spacer(1, 35))
 
     # =========================
-    # VERGELIJKINGSTABEL
+    # UITGEBREIDE FEEDBACK
     # =========================
 
     content.append(
         Paragraph(
-            "Vergelijking met klasgemiddelde",
+            "Uitgebreide analyse",
             heading_style
         )
     )
 
-    tabel_data = [
-        ["Onderdeel", "Groep", "Klas"]
-    ]
-
-    for i, label in enumerate(labels):
-
-        tabel_data.append([
-            label,
-            f"{round(scores[i],1)}/7",
-            f"{round(klas_scores[i],1)}/7"
-        ])
-
-    vergelijking = Table(
-        tabel_data,
-        colWidths=[220, 100, 100]
+    feedback_box = Table(
+        [[
+            Paragraph(
+                analyse["feedback"],
+                body_style
+            )
+        ]],
+        colWidths=[470]
     )
 
-    vergelijking.setStyle(TableStyle([
+    feedback_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#DCE3EB")),
 
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#16324F")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("TOPPADDING", (0, 0), (-1, -1), 18),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 18),
 
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 11),
-
-        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F8FAFC")),
-
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#DCE3EB")),
-
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
-        ("TOPPADDING", (0, 1), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
-
-        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
-
+        ("LEFTPADDING", (0, 0), (-1, -1), 18),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 18),
     ]))
 
-    content.append(vergelijking)
+    content.append(feedback_box)
 
-    content.append(Spacer(1, 35))
+    content.append(Spacer(1, 30))
 
     # =========================
-    # POSITIEVE PUNTEN
+    # STERKE PUNTEN
     # =========================
 
     content.append(
@@ -521,7 +579,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
 
     content.append(positieve_box)
 
-    content.append(Spacer(1, 30))
+    content.append(Spacer(1, 25))
 
     # =========================
     # VERBETERPUNTEN
@@ -723,7 +781,7 @@ if mode == "📊 Leerkracht":
     ]
 
     st.plotly_chart(
-        radar(scores, labels),
+        radar(scores, klas_scores, labels),
         use_container_width=True
     )
 
@@ -738,6 +796,9 @@ if mode == "📊 Leerkracht":
         scores,
         tekst
     )
+
+    st.markdown("## 📘 Uitgebreide analyse")
+    st.markdown(analyse["feedback"])
 
     st.markdown("## ✅ Sterke punten")
 
