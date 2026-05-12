@@ -347,8 +347,7 @@ if mode == "📊 Leerkracht":
         groep_df["vragen"].mean()
     ]
 
-    klas_scores =
-    [
+    klas_scores = [
         df["presence"].mean(),
         df["taal"].mean(),
         df["contact"].mean(),
