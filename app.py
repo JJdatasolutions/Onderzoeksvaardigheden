@@ -217,7 +217,9 @@ if mode == "📊 Leerkracht: groepsrapport":
     # TEKST SAMENVOEGEN
     # =========================
 
-    tekst = "\n".join(groep_df["feedback"].astype(str).tolist())
+    tekst = "\n".join(
+    groep_df["feedback"].fillna("").astype(str).tolist()
+)
 
     st.markdown(genereer_ai_feedback(scores, tekst))
 
