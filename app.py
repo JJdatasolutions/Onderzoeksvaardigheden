@@ -1,12 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
 from datetime import datetime
 import os
 import io
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # =========================
 # CONFIG
@@ -16,7 +18,7 @@ st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
 
 BESTAND = "peer_feedback.csv"
 
-LEERKRACHT_PIN = "1234"  # 🔐 wijzig dit
+LEERKRACHT_PIN = "1234"  # 🔐 verander dit
 
 GROEPEN = [
     "Asa en Stella",
@@ -42,7 +44,7 @@ def load_data():
 df = load_data()
 
 # =========================
-# RADAR CHART
+# RADAR CHART (APP)
 # =========================
 
 def radar(scores, labels):
@@ -63,7 +65,30 @@ def radar(scores, labels):
     return fig
 
 # =========================
-# AI ANALYSE (diepgaand op feedback)
+# RADAR ALS AFBEELDING (PDF)
+# =========================
+
+def radar_image(scores, labels):
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatterpolar(
+        r=scores + [scores[0]],
+        theta=labels + [labels[0]],
+        fill='toself'
+    ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
+        showlegend=False,
+        height=500
+    )
+
+    img_bytes = pio.to_image(fig, format="png", engine="kaleido")
+    return img_bytes
+
+# =========================
+# AI ANALYSE (feedback-based)
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
@@ -78,25 +103,24 @@ def genereer_ai_feedback(scores, tekst):
 
 ---
 
-### 🧠 Analyse van leerlingfeedback
-
+### 💬 Analyse van leerlingfeedback
 {tekst}
 
 ---
 
 ### ⭐ Observaties
-- Er komen duidelijke patronen naar voren in de kwaliteit van presentatievaardigheden.
-- Feedback wijst op een combinatie van sterke en verbeterbare communicatie-elementen.
+- Feedback toont duidelijke patronen in presentatiekwaliteit
+- Sterktes en werkpunten komen consistent terug
 
 ---
 
 ### 🚀 Aanbevelingen
-- Werk aan consistentie tussen spreken, visuele ondersteuning en interactie met het publiek.
-- Focus op duidelijke structuur en bewust publiekcontact.
+- Werk aan consistentie tussen spreken, visual en interactie
+- Focus op duidelijkheid en structuur
 """
 
 # =========================
-# PDF GENERATOR (stijlvol + namen + scores + AI)
+# PDF GENERATOR (PROFESSIONEEL)
 # =========================
 
 def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
@@ -105,39 +129,85 @@ def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
     doc = SimpleDocTemplate(buffer)
 
     styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        name="TitleStyle",
+        fontSize=20,
+        leading=24,
+        textColor=colors.darkblue,
+        spaceAfter=12
+    )
+
+    section_style = ParagraphStyle(
+        name="Section",
+        fontSize=13,
+        leading=16,
+        spaceAfter=8,
+        textColor=colors.black
+    )
+
     content = []
 
+    # =========================
     # TITEL
-    content.append(Paragraph(f"<b>Groepsrapport: {groep}</b>", styles["Title"]))
+    # =========================
+    content.append(Paragraph(f"Groepsrapport: {groep}", title_style))
     content.append(Spacer(1, 12))
 
-    # NAAM OVERZICHT
-    content.append(Paragraph("<b>Deelnemende evaluaties:</b>", styles["Heading2"]))
-    namen = ", ".join(groep_df["groep"].astype(str).tolist())
-    content.append(Paragraph(namen, styles["BodyText"]))
-    content.append(Spacer(1, 12))
+    # =========================
+    # RADAR CHART (IMAGE)
+    # =========================
 
-    # SCORES
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+    img = radar_image(scores, labels)
 
-    content.append(Paragraph("<b>Groepsscores</b>", styles["Heading2"]))
+    img_buffer = io.BytesIO(img)
+
+    content.append(Paragraph("📊 Prestatie-overzicht", section_style))
+    content.append(Image(img_buffer, width=400, height=300))
+    content.append(Spacer(1, 12))
+
+    # =========================
+    # SCORES
+    # =========================
+
+    content.append(Paragraph("📈 Groepsscores", section_style))
+
     for i, l in enumerate(labels):
         content.append(Paragraph(f"{l}: {round(scores[i],1)}/7", styles["BodyText"]))
 
     content.append(Spacer(1, 12))
 
-    # KLASGEMIDDELDE
-    content.append(Paragraph("<b>Klasgemiddelde (benchmark)</b>", styles["Heading2"]))
+    # =========================
+    # NAAMOVERZICHT
+    # =========================
+
+    namen = ", ".join(groep_df["groep"].astype(str).tolist())
+
+    content.append(Paragraph("👥 Evaluaties door:", section_style))
+    content.append(Paragraph(namen, styles["BodyText"]))
+    content.append(Spacer(1, 12))
+
+    # =========================
+    # KLAS BENCHMARK
+    # =========================
+
+    content.append(Paragraph("🏫 Klasgemiddelde", section_style))
+
     for i, l in enumerate(labels):
         content.append(Paragraph(f"{l}: {round(klas_scores[i],1)}/7", styles["BodyText"]))
 
     content.append(Spacer(1, 12))
 
+    # =========================
     # AI RAPPORT
-    content.append(Paragraph("<b>AI Analyse</b>", styles["Heading2"]))
+    # =========================
+
+    content.append(Paragraph("🤖 Analyse", section_style))
+
     for line in rapport.split("\n"):
         content.append(Paragraph(line, styles["BodyText"]))
-        content.append(Spacer(1, 4))
+        content.append(Spacer(1, 3))
 
     doc.build(content)
     buffer.seek(0)
@@ -156,7 +226,7 @@ mode = st.radio(
 )
 
 # =========================
-# LEERLINGEN MODE
+# LEERLINGEN
 # =========================
 
 if mode == "✍️ Leerlingen: feedback geven":
@@ -201,7 +271,7 @@ if mode == "✍️ Leerlingen: feedback geven":
             st.success("Feedback opgeslagen!")
 
 # =========================
-# LEERKRACHT MODE
+# LEERKRACHT
 # =========================
 
 if mode == "📊 Leerkracht: groepsrapport":
@@ -217,7 +287,7 @@ if mode == "📊 Leerkracht: groepsrapport":
     groep = st.selectbox("Selecteer groep", GROEPEN)
 
     if df.empty:
-        st.warning("Geen data beschikbaar.")
+        st.warning("Geen data.")
         st.stop()
 
     groep_df = df[df["groep"] == groep]
@@ -252,7 +322,7 @@ if mode == "📊 Leerkracht: groepsrapport":
 
     st.plotly_chart(radar(scores, labels), use_container_width=True)
 
-    st.metric("Gemiddelde score", round(sum(scores)/len(scores), 1))
+    st.metric("Gemiddelde", round(sum(scores)/len(scores), 1))
     st.metric("Aantal evaluaties", len(groep_df))
 
     # =========================
@@ -262,10 +332,6 @@ if mode == "📊 Leerkracht: groepsrapport":
     tekst = "\n".join(
         groep_df["feedback"].fillna("").astype(str).tolist()
     )
-
-    # =========================
-    # AI RAPPORT
-    # =========================
 
     rapport = genereer_ai_feedback(scores, tekst)
 
@@ -288,5 +354,5 @@ if mode == "📊 Leerkracht: groepsrapport":
 # DEBUG
 # =========================
 
-with st.expander("📁 Data bekijken"):
+with st.expander("📁 Data"):
     st.dataframe(df)
