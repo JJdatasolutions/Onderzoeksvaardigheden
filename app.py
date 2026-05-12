@@ -144,45 +144,27 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
             "profiel": "Onbekend"
         }
 
-    url = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
+    url = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
 
-    headers = {
-        "Authorization": f"Bearer {hf_token}"
-    }
+    headers = {"Authorization": f"Bearer {hf_token}"}
 
     prompt = f"""
-Je bent een ervaren docent.
+Samenvatting van leerlingfeedback:
 
-Geef een duidelijke analyse van deze presentatiefeedback.
-
-TEKST:
 {tekst[:1500]}
 
-SCORES:
-Presence {scores[0]}
-Taal {scores[1]}
-Contact {scores[2]}
-Visual {scores[3]}
-Vragen {scores[4]}
-
-STRUCTUUR:
-- Samenvatting (±150 woorden)
+Schrijf:
+- korte samenvatting
 - 3 sterke punten
 - 3 verbeterpunten
-- 1 conclusiezin
+- conclusie
 """
 
     try:
         response = requests.post(
             url,
             headers=headers,
-            json={
-                "inputs": prompt,
-                "parameters": {
-                    "max_new_tokens": 400,
-                    "temperature": 0.7
-                }
-            },
+            json={"inputs": prompt},
             timeout=30
         )
 
@@ -197,34 +179,13 @@ STRUCTUUR:
 
         data = response.json()
 
-        if isinstance(data, dict) and "error" in data:
-            return {
-                "gemiddelde": avg,
-                "feedback": f"HF error: {data['error']}",
-                "positief": [],
-                "verbeter": [],
-                "profiel": "Onbekend"
-            }
-
-        if not isinstance(data, list):
-            return {
-                "gemiddelde": avg,
-                "feedback": str(data),
-                "positief": [],
-                "verbeter": [],
-                "profiel": "Onbekend"
-            }
-
-        output = data[0].get("generated_text", "Geen output")
+        if isinstance(data, list) and len(data) > 0:
+            output = data[0].get("summary_text", "Geen output")
+        else:
+            output = str(data)
 
     except Exception as e:
-        return {
-            "gemiddelde": avg,
-            "feedback": f"Request error: {str(e)}",
-            "positief": [],
-            "verbeter": [],
-            "profiel": "Onbekend"
-        }
+        output = f"AI fout: {str(e)}"
 
     return {
         "gemiddelde": avg,
