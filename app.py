@@ -7,6 +7,8 @@ from datetime import datetime
 import os
 import io
 
+from openai import OpenAI
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
@@ -51,6 +53,14 @@ GROEPEN = [
 ]
 
 # =========================
+# OPENAI
+# =========================
+
+client = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"]
+)
+
+# =========================
 # DATA
 # =========================
 
@@ -78,7 +88,7 @@ def radar(scores, klas_scores, labels):
         theta=labels + [labels[0]],
         fill='toself',
         name="Klasgemiddelde",
-        opacity=0.25,
+        opacity=0.20,
         line=dict(width=2)
     ))
 
@@ -89,7 +99,7 @@ def radar(scores, klas_scores, labels):
         theta=labels + [labels[0]],
         fill='toself',
         name="Groep",
-        opacity=0.7,
+        opacity=0.70,
         line=dict(width=4)
     ))
 
@@ -114,7 +124,7 @@ def radar(scores, klas_scores, labels):
     return fig
 
 # =========================
-# RADAR CHART PDF
+# RADAR PDF
 # =========================
 
 def radar_pdf(scores, klas_scores, labels):
@@ -136,7 +146,7 @@ def radar_pdf(scores, klas_scores, labels):
         subplot_kw=dict(polar=True)
     )
 
-    # KLASGEMIDDELDE
+    # KLAS
 
     ax.plot(
         angles,
@@ -195,143 +205,155 @@ def radar_pdf(scores, klas_scores, labels):
     return buffer
 
 # =========================
-# AI ANALYSE
+# AI FEEDBACK
 # =========================
 
-def genereer_ai_feedback(scores, tekst):
+def genereer_ai_feedback(
+    scores,
+    klas_scores,
+    tekst
+):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    tekst_lower = tekst.lower()
+    prompt = f"""
+Je bent een professionele presentatiecoach in het onderwijs.
 
-    positieve_punten = []
-    verbeterpunten = []
+Analyseer onderstaande peer feedback van leerlingen.
 
-    # POSITIEVE ANALYSE
+Maak:
+1. Een professionele samenvatting van ongeveer 180 woorden
+2. 3 sterke punten
+3. 3 verbeterpunten
+4. Een presentatieprofiel
 
-    if any(w in tekst_lower for w in [
-        "duidelijk",
-        "helder",
-        "structuur"
-    ]):
+De feedback moet:
+- constructief zijn
+- professioneel klinken
+- motiverend zijn
+- specifiek zijn
+- niet generiek zijn
 
-        positieve_punten.append(
-            "De presentatie werd als duidelijk en goed gestructureerd ervaren."
-        )
+Gebruik ook deze scores:
 
-    if any(w in tekst_lower for w in [
-        "zelfzeker",
-        "vlot",
-        "rustig"
-    ]):
+Groepsscores:
+Presence: {scores[0]}
+Taal: {scores[1]}
+Contact: {scores[2]}
+Visual: {scores[3]}
+Vragen: {scores[4]}
 
-        positieve_punten.append(
-            "De groep kwam zelfzeker en professioneel over tijdens het presenteren."
-        )
+Klasgemiddelde:
+Presence: {klas_scores[0]}
+Taal: {klas_scores[1]}
+Contact: {klas_scores[2]}
+Visual: {klas_scores[3]}
+Vragen: {klas_scores[4]}
 
-    if any(w in tekst_lower for w in [
-        "interessant",
-        "boeiend",
-        "enthousiast"
-    ]):
+Peer feedback:
+{tekst}
 
-        positieve_punten.append(
-            "Het publiek bleef betrokken dankzij een enthousiaste presentatieaanpak."
-        )
+Geef je antwoord EXACT in dit formaat:
 
-    if any(w in tekst_lower for w in [
-        "slides",
-        "visual",
-        "mooi"
-    ]):
+SAMENVATTING:
+...
 
-        positieve_punten.append(
-            "De visuele ondersteuning versterkte de inhoud van de presentatie."
-        )
+STERKE_PUNTEN:
+- ...
+- ...
+- ...
 
-    # VERBETERPUNTEN
+VERBETERPUNTEN:
+- ...
+- ...
+- ...
 
-    if any(w in tekst_lower for w in [
-        "tempo",
-        "sneller",
-        "trager"
-    ]):
-
-        verbeterpunten.append(
-            "Meer controle over het spreektempo kan de presentatie nog krachtiger maken."
-        )
-
-    if any(w in tekst_lower for w in [
-        "zachter",
-        "luider",
-        "volume"
-    ]):
-
-        verbeterpunten.append(
-            "Extra aandacht voor stemvolume en verstaanbaarheid zou de presentatie verbeteren."
-        )
-
-    if any(w in tekst_lower for w in [
-        "interactie",
-        "vragen",
-        "meer"
-    ]):
-
-        verbeterpunten.append(
-            "Meer interactie met het publiek kan de betrokkenheid nog verhogen."
-        )
-
-    if any(w in tekst_lower for w in [
-        "onduidelijk",
-        "verwarrend"
-    ]):
-
-        verbeterpunten.append(
-            "Sommige onderdelen mogen nog iets duidelijker uitgewerkt worden."
-        )
-
-    # FALLBACKS
-
-    if len(positieve_punten) == 0:
-
-        positieve_punten.append(
-            "De groep bracht een verzorgde en degelijke presentatie."
-        )
-
-    if len(verbeterpunten) == 0:
-
-        verbeterpunten.append(
-            "De presentatie heeft een sterke basis en kan verder verfijnd worden."
-        )
-
-    uitgebreide_feedback = f"""
-De presentatie behaalde een gemiddelde score van {avg}/7 en maakte in het algemeen een sterke indruk op het publiek. 
-Uit de verzamelde feedback blijkt dat de groep erin slaagde om de informatie op een duidelijke en gestructureerde manier over te brengen. 
-De presentatie kwam verzorgd over en de groep straalde voldoende zelfvertrouwen uit tijdens het spreken.
-
-Positieve elementen die regelmatig terugkwamen in de feedback waren onder andere de duidelijke uitleg, de rustige presentatiehouding 
-en de kwaliteit van de visuele ondersteuning. Verschillende leerlingen gaven aan dat de presentatie aangenaam was om naar te luisteren 
-en dat de groep goed voorbereid leek.
-
-Daarnaast zijn er ook enkele groeikansen zichtbaar. Vooral op vlak van interactie met het publiek, spreektempo en dynamiek 
-kan nog verdere vooruitgang geboekt worden. Door nog bewuster in te zetten op contact met het publiek en een krachtige spreekstijl 
-kan de presentatie nog professioneler en overtuigender worden.
-
-Globaal toont deze presentatie een sterke basis met veel potentieel voor verdere groei.
+PRESENTATIEPROFIEL:
+...
 """
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "Je bent een professionele presentatiecoach."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.7
+    )
+
+    antwoord = response.choices[0].message.content
+
+    # PARSEN
+
+    samenvatting = ""
+    sterke = []
+    verbeter = []
+    profiel = ""
+
+    try:
+
+        samenvatting = antwoord.split(
+            "SAMENVATTING:"
+        )[1].split(
+            "STERKE_PUNTEN:"
+        )[0].strip()
+
+        sterke_raw = antwoord.split(
+            "STERKE_PUNTEN:"
+        )[1].split(
+            "VERBETERPUNTEN:"
+        )[0].strip()
+
+        verbeter_raw = antwoord.split(
+            "VERBETERPUNTEN:"
+        )[1].split(
+            "PRESENTATIEPROFIEL:"
+        )[0].strip()
+
+        profiel = antwoord.split(
+            "PRESENTATIEPROFIEL:"
+        )[1].strip()
+
+        sterke = [
+            s.replace("-", "").strip()
+            for s in sterke_raw.split("\n")
+            if s.strip()
+        ]
+
+        verbeter = [
+            s.replace("-", "").strip()
+            for s in verbeter_raw.split("\n")
+            if s.strip()
+        ]
+
+    except:
+
+        samenvatting = antwoord
 
     return {
         "gemiddelde": avg,
-        "positief": positieve_punten,
-        "verbeter": verbeterpunten,
-        "feedback": uitgebreide_feedback
+        "feedback": samenvatting,
+        "positief": sterke,
+        "verbeter": verbeter,
+        "profiel": profiel
     }
 
 # =========================
 # PDF EXPORT
 # =========================
 
-def maak_pdf(groep, scores, klas_scores, analyse):
+def maak_pdf(
+    groep,
+    scores,
+    klas_scores,
+    analyse
+):
 
     buffer = io.BytesIO()
 
@@ -366,17 +388,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         fontSize=28,
         leading=34,
         alignment=TA_CENTER,
-        textColor=colors.HexColor("#16324F"),
-        spaceAfter=10
-    )
-
-    groep_style = ParagraphStyle(
-        "Groep",
-        parent=styles["BodyText"],
-        fontSize=15,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#5B6575"),
-        leading=24
+        textColor=colors.HexColor("#16324F")
     )
 
     heading_style = ParagraphStyle(
@@ -384,7 +396,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         parent=styles["Heading2"],
         fontSize=18,
         textColor=colors.HexColor("#16324F"),
-        spaceAfter=16
+        spaceAfter=14
     )
 
     body_style = ParagraphStyle(
@@ -418,10 +430,12 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         )
     )
 
+    content.append(Spacer(1, 8))
+
     content.append(
         Paragraph(
-            f"{groep}<br/>{datum}",
-            groep_style
+            f"<para align=center><font size=14>{groep}</font><br/>{datum}</para>",
+            body_style
         )
     )
 
@@ -448,15 +462,16 @@ def maak_pdf(groep, scores, klas_scores, analyse):
             Paragraph(
                 f"""
                 <para align=center>
-                <font size=12>Gemiddelde score</font><br/><br/>
-                <font size=26><b>{avg}/7</b></font>
+                <font size=12>Gemiddelde score</font>
+                <br/><br/>
+                <font size=28><b>{avg}/7</b></font>
                 </para>
                 """,
-                styles["BodyText"]
+                body_style
             )
         ]],
         colWidths=[190],
-        rowHeights=[90]
+        rowHeights=[95]
     )
 
     score_table.setStyle(TableStyle([
@@ -505,7 +520,43 @@ def maak_pdf(groep, scores, klas_scores, analyse):
     content.append(Spacer(1, 35))
 
     # =========================
-    # UITGEBREIDE FEEDBACK
+    # PROFIEL
+    # =========================
+
+    content.append(
+        Paragraph(
+            "Presentatieprofiel",
+            heading_style
+        )
+    )
+
+    profiel_box = Table(
+        [[
+            Paragraph(
+                analyse["profiel"],
+                body_style
+            )
+        ]],
+        colWidths=[470]
+    )
+
+    profiel_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EEF4FF")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#C8D7F0")),
+
+        ("TOPPADDING", (0, 0), (-1, -1), 16),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+    ]))
+
+    content.append(profiel_box)
+
+    content.append(Spacer(1, 30))
+
+    # =========================
+    # FEEDBACK
     # =========================
 
     content.append(
@@ -781,7 +832,11 @@ if mode == "📊 Leerkracht":
     ]
 
     st.plotly_chart(
-        radar(scores, klas_scores, labels),
+        radar(
+            scores,
+            klas_scores,
+            labels
+        ),
         use_container_width=True
     )
 
@@ -792,13 +847,19 @@ if mode == "📊 Leerkracht":
         .tolist()
     )
 
-    analyse = genereer_ai_feedback(
-        scores,
-        tekst
-    )
+    with st.spinner("AI analyse genereert feedback..."):
+
+        analyse = genereer_ai_feedback(
+            scores,
+            klas_scores,
+            tekst
+        )
+
+    st.markdown("## 🎯 Presentatieprofiel")
+    st.info(analyse["profiel"])
 
     st.markdown("## 📘 Uitgebreide analyse")
-    st.markdown(analyse["feedback"])
+    st.write(analyse["feedback"])
 
     st.markdown("## ✅ Sterke punten")
 
