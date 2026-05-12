@@ -172,22 +172,26 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
         bottomMargin=30
     )
 
+    from reportlab.lib import colors  # 🔥 BELANGRIJK: veilig binnen functie
+
     styles = getSampleStyleSheet()
 
     # =========================
-    # CUSTOM STYLES
+    # STYLES (PROFESSIONEEL DESIGN)
     # =========================
 
     title_style = styles["Title"]
     title_style.fontSize = 22
-    title_style.spaceAfter = 10
+    title_style.leading = 26
+    title_style.spaceAfter = 12
 
     subtitle_style = styles["Heading2"]
     subtitle_style.textColor = colors.HexColor("#2E4057")
+    subtitle_style.spaceAfter = 8
 
-    body = styles["BodyText"]
-    body.fontSize = 10
-    body.leading = 14
+    body_style = styles["BodyText"]
+    body_style.fontSize = 10
+    body_style.leading = 14
 
     content = []
 
@@ -196,20 +200,18 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     # =========================
 
     content.append(Paragraph("🎓 Peer Feedback Rapport", title_style))
-    content.append(Paragraph(f"Groep: <b>{groep}</b>", subtitle_style))
-    content.append(Paragraph(f"Datum: {datetime.now().strftime('%d/%m/%Y')}", body))
+    content.append(Paragraph(f"<b>Groep:</b> {groep}", body_style))
+    content.append(Paragraph(f"<b>Datum:</b> {datetime.now().strftime('%d/%m/%Y')}", body_style))
 
     content.append(Spacer(1, 15))
-
-    # lijn
-    content.append(Paragraph("<hr/>", body))
-    content.append(Spacer(1, 10))
+    content.append(Paragraph("<hr/>", body_style))
+    content.append(Spacer(1, 15))
 
     # =========================
-    # RADAR
+    # RADAR CHART
     # =========================
 
-    labels = ["Presence","Taal","Contact","Visual","Vragen"]
+    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
@@ -217,7 +219,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     scores_plot = scores + scores[:1]
     klas_plot = klas_scores + klas_scores[:1]
 
-    fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
 
     ax.plot(angles, klas_plot, linestyle="dashed", label="Klasgemiddelde")
     ax.plot(angles, scores_plot, label="Groep")
@@ -225,38 +227,44 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
-    ax.set_ylim(0,7)
+    ax.set_ylim(0, 7)
     ax.legend(loc="upper right")
 
-    img = io.BytesIO()
-    plt.savefig(img, format="png", dpi=200, bbox_inches="tight")
-    img.seek(0)
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format="png", dpi=200, bbox_inches="tight")
+    img_buffer.seek(0)
     plt.close()
 
     content.append(Paragraph("📊 Prestatie-overzicht", subtitle_style))
     content.append(Spacer(1, 10))
-    content.append(Image(img, width=420, height=420))
+    content.append(Image(img_buffer, width=420, height=420))
 
     content.append(Spacer(1, 20))
 
     # =========================
-    # SCORES TABEL (BELANGRIJK DESIGN-IMPROVEMENT)
+    # SCORES TABEL (NET DESIGN)
     # =========================
 
-    data = [["Categorie", "Groep", "Klas"]]
-    for i, l in enumerate(labels):
-        data.append([l, round(scores[i],1), round(klas_scores[i],1)])
+    table_data = [["Categorie", "Groep", "Klas"]]
 
-    table = Table(data, colWidths=[200, 80, 80])
+    for i, label in enumerate(labels):
+        table_data.append([
+            label,
+            round(scores[i], 1),
+            round(klas_scores[i], 1)
+        ])
+
+    table = Table(table_data, colWidths=[200, 80, 80])
 
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#2E4057")),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("BOTTOMPADDING", (0,0), (-1,0), 10),
-        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-        ("BACKGROUND", (0,1), (-1,-1), colors.whitesmoke),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E4057")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
     ]))
 
     content.append(Paragraph("📈 Scores overzicht", subtitle_style))
@@ -283,20 +291,19 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     content.append(Image(neg_img, width=300, height=150))
 
     # =========================
-    # FOOTER NOTE
+    # FOOTER
     # =========================
 
     content.append(Spacer(1, 20))
     content.append(Paragraph(
-        "Dit rapport werd automatisch gegenereerd op basis van peer feedback data.",
-        body
+        "Dit rapport werd automatisch gegenereerd op basis van peer feedback.",
+        body_style
     ))
 
     doc.build(content)
     buffer.seek(0)
 
     return buffer
-
 # =========================
 # UI
 # =========================
@@ -377,7 +384,8 @@ if mode == "📊 Leerkracht":
         groep_df["vragen"].mean()
     ]
 
-    klas_scores = [
+    klas_scores =
+    [
         df["presence"].mean(),
         df["taal"].mean(),
         df["contact"].mean(),
