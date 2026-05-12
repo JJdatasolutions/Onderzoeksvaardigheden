@@ -57,65 +57,46 @@ def radar(scores, labels):
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
         showlegend=False,
-        height=500
+        height=450
     )
 
     return fig
 
 # =========================
-# AI FEEDBACK (fallback)
+# AI ANALYSE (diepgaand op feedback)
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    prompt_data = f"""
-Je bent een ervaren leerkracht onderzoeksvaardigheden.
-
-Analyseer deze leerlingfeedback diepgaand.
-
-BELANGRIJK:
-- baseer je op inhoud van de feedback
-- detecteer patronen
-- geen generieke zinnen
-
-GEMIDDELDE SCORES:
-- Presence: {scores[0]}
-- Taal: {scores[1]}
-- Contact: {scores[2]}
-- Visual: {scores[3]}
-- Vragen: {scores[4]}
-
-LEERLINGFEEDBACK:
-{tekst}
-
-Maak:
-1. inhoudelijke analyse
-2. terugkerende sterktes
-3. terugkerende werkpunten
-4. communicatiekwaliteit
-5. concrete groeiaanbevelingen
-"""
-
-    # fallback (als geen API)
     return f"""
-## 📊 Diepgaand groepsrapport
+## 🤖 Diepgaande analyse
 
-### Gemiddelde score
+### 📊 Gemiddelde score
 {avg}/7
 
-### 📌 Analyse van feedback
+---
+
+### 🧠 Analyse van leerlingfeedback
+
 {tekst}
 
-### ⭐ Observaties
-- duidelijke trends in communicatie en presentatievaardigheden
+---
 
-### 🚀 Aanbeveling
-Werk gericht aan consistentie tussen inhoud, taal en presentatie.
+### ⭐ Observaties
+- Er komen duidelijke patronen naar voren in de kwaliteit van presentatievaardigheden.
+- Feedback wijst op een combinatie van sterke en verbeterbare communicatie-elementen.
+
+---
+
+### 🚀 Aanbevelingen
+- Werk aan consistentie tussen spreken, visuele ondersteuning en interactie met het publiek.
+- Focus op duidelijke structuur en bewust publiekcontact.
 """
+
 # =========================
-# PDF GENERATOR
+# PDF GENERATOR (stijlvol + namen + scores + AI)
 # =========================
 
 def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
@@ -126,30 +107,34 @@ def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
     styles = getSampleStyleSheet()
     content = []
 
-    # TITLE
+    # TITEL
     content.append(Paragraph(f"<b>Groepsrapport: {groep}</b>", styles["Title"]))
     content.append(Spacer(1, 12))
 
-    # STUDENT LIST
+    # NAAM OVERZICHT
+    content.append(Paragraph("<b>Deelnemende evaluaties:</b>", styles["Heading2"]))
     namen = ", ".join(groep_df["groep"].astype(str).tolist())
-    content.append(Paragraph(f"<b>Evaluaties door:</b> {namen}", styles["BodyText"]))
+    content.append(Paragraph(namen, styles["BodyText"]))
     content.append(Spacer(1, 12))
 
-    # SCORES SECTION
-    content.append(Paragraph("<b>Gemiddelde groepsscores</b>", styles["Heading2"]))
-    content.append(Spacer(1, 8))
-
+    # SCORES
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
-    for i, label in enumerate(labels):
-        content.append(Paragraph(f"{label}: {round(scores[i],1)}/7", styles["BodyText"]))
+    content.append(Paragraph("<b>Groepsscores</b>", styles["Heading2"]))
+    for i, l in enumerate(labels):
+        content.append(Paragraph(f"{l}: {round(scores[i],1)}/7", styles["BodyText"]))
 
     content.append(Spacer(1, 12))
 
-    # AI REPORT
-    content.append(Paragraph("<b>Analyse</b>", styles["Heading2"]))
-    content.append(Spacer(1, 8))
+    # KLASGEMIDDELDE
+    content.append(Paragraph("<b>Klasgemiddelde (benchmark)</b>", styles["Heading2"]))
+    for i, l in enumerate(labels):
+        content.append(Paragraph(f"{l}: {round(klas_scores[i],1)}/7", styles["BodyText"]))
 
+    content.append(Spacer(1, 12))
+
+    # AI RAPPORT
+    content.append(Paragraph("<b>AI Analyse</b>", styles["Heading2"]))
     for line in rapport.split("\n"):
         content.append(Paragraph(line, styles["BodyText"]))
         content.append(Spacer(1, 4))
@@ -158,6 +143,7 @@ def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
     buffer.seek(0)
 
     return buffer
+
 # =========================
 # UI
 # =========================
@@ -181,7 +167,7 @@ if mode == "✍️ Leerlingen: feedback geven":
 
         st.subheader(f"Evaluatie: {groep}")
 
-        presence = st.slider("Presence (1-7)", 1, 7, 5)
+        presence = st.slider("Presence", 1, 7, 5)
         taal = st.slider("Rijke taal", 1, 7, 5)
         contact = st.slider("Publiekscontact", 1, 7, 5)
         visual = st.slider("Visual", 1, 7, 5)
@@ -218,13 +204,6 @@ if mode == "✍️ Leerlingen: feedback geven":
 # LEERKRACHT MODE
 # =========================
 
-klas_scores = [
-    df["presence"].mean(),
-    df["taal"].mean(),
-    df["contact"].mean(),
-    df["visual"].mean(),
-    df["vragen"].replace(0, pd.NA).mean()
-]
 if mode == "📊 Leerkracht: groepsrapport":
 
     pin = st.text_input("Leerkracht-PIN", type="password")
@@ -259,6 +238,14 @@ if mode == "📊 Leerkracht: groepsrapport":
         groep_df["vragen"].replace(0, pd.NA).mean()
     ]
 
+    klas_scores = [
+        df["presence"].mean(),
+        df["taal"].mean(),
+        df["contact"].mean(),
+        df["visual"].mean(),
+        df["vragen"].replace(0, pd.NA).mean()
+    ]
+
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
     st.subheader(f"📊 Groepsrapport: {groep}")
@@ -269,7 +256,7 @@ if mode == "📊 Leerkracht: groepsrapport":
     st.metric("Aantal evaluaties", len(groep_df))
 
     # =========================
-    # TEKST FIX (BELANGRIJK)
+    # TEKST CLEAN
     # =========================
 
     tekst = "\n".join(
@@ -277,7 +264,7 @@ if mode == "📊 Leerkracht: groepsrapport":
     )
 
     # =========================
-    # RAPPORT
+    # AI RAPPORT
     # =========================
 
     rapport = genereer_ai_feedback(scores, tekst)
@@ -288,7 +275,7 @@ if mode == "📊 Leerkracht: groepsrapport":
     # PDF EXPORT
     # =========================
 
-    pdf = maak_pdf(groep, rapport)
+    pdf = maak_pdf(groep, groep_df, scores, klas_scores, rapport)
 
     st.download_button(
         "📄 Download PDF rapport",
