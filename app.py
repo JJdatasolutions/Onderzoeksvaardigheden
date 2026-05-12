@@ -233,41 +233,47 @@ if mode == "✍️ Leerlingen":
         visual = st.slider("Visual", 1, 7, 5)
         vragen = st.slider("Vragen", 1, 7, 5)
 
-        # =========================
+# =========================
 # POSITIEVE PUNTEN (3 kolommen)
 # =========================
 
-    st.subheader("👍 Positieve punten")
+st.subheader("👍 Positieve punten")
 
-    cols = st.columns(3)
+cols = st.columns(3)
 
-    positief = []
+positief = []
 
-    for i, opt in enumerate(positieve_opties):
-        col = cols[i % 3]
-        if col.checkbox(opt, key=f"pos_{i}"):
-            positief.append(opt)
+for i, opt in enumerate(positieve_opties):
+    col = cols[i % 3]
+    if col.checkbox(opt, key=f"pos_{i}"):
+        positief.append(opt)
 
-    positief = positief[:3]
+positief = positief[:3]
 
 
 # =========================
 # WERKPUNTEN (3 kolommen)
 # =========================
 
-    st.subheader("👎 Werkpunten")
+st.subheader("👎 Werkpunten")
 
-    cols = st.columns(3)
+cols = st.columns(3)
 
-    werkpunt = []
+werkpunt = []
 
-    for i, opt in enumerate(negatieve_opties):
-        col = cols[i % 3]
-        if col.checkbox(opt, key=f"neg_{i}"):
-            werkpunt.append(opt)
+for i, opt in enumerate(negatieve_opties):
+    col = cols[i % 3]
+    if col.checkbox(opt, key=f"neg_{i}"):
+        werkpunt.append(opt)
 
-    werkpunt = werkpunt[:3]
-        submit = st.form_submit_button("Opslaan")
+werkpunt = werkpunt[:3]
+
+
+# =========================
+# SUBMIT (MOET BINNEN FORM BLIJVEN)
+# =========================
+
+submit = st.form_submit_button("Opslaan")
 
         if submit:
 
