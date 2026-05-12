@@ -163,17 +163,54 @@ def analyseer_groep(groep_df):
 def maak_pdf(groep, scores, klas_scores, groep_df):
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
     styles = getSampleStyleSheet()
+
+    # =========================
+    # CUSTOM STYLES
+    # =========================
+
+    title_style = styles["Title"]
+    title_style.fontSize = 22
+    title_style.spaceAfter = 10
+
+    subtitle_style = styles["Heading2"]
+    subtitle_style.textColor = colors.HexColor("#2E4057")
+
+    body = styles["BodyText"]
+    body.fontSize = 10
+    body.leading = 14
 
     content = []
 
+    # =========================
+    # HEADER
+    # =========================
+
+    content.append(Paragraph("🎓 Peer Feedback Rapport", title_style))
+    content.append(Paragraph(f"Groep: <b>{groep}</b>", subtitle_style))
+    content.append(Paragraph(f"Datum: {datetime.now().strftime('%d/%m/%Y')}", body))
+
+    content.append(Spacer(1, 15))
+
+    # lijn
+    content.append(Paragraph("<hr/>", body))
+    content.append(Spacer(1, 10))
+
+    # =========================
+    # RADAR
+    # =========================
+
     labels = ["Presence","Taal","Contact","Visual","Vragen"]
 
-    content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
-    content.append(Spacer(1, 20))
-
-    # RADAR
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
 
@@ -181,35 +218,79 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     klas_plot = klas_scores + klas_scores[:1]
 
     fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
-    ax.plot(angles, klas_plot, linestyle="dashed", label="Klas")
+
+    ax.plot(angles, klas_plot, linestyle="dashed", label="Klasgemiddelde")
     ax.plot(angles, scores_plot, label="Groep")
-    ax.fill(angles, scores_plot, alpha=0.3)
+    ax.fill(angles, scores_plot, alpha=0.25)
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
     ax.set_ylim(0,7)
-    ax.legend()
+    ax.legend(loc="upper right")
 
     img = io.BytesIO()
     plt.savefig(img, format="png", dpi=200, bbox_inches="tight")
     img.seek(0)
     plt.close()
 
-    content.append(Image(img, width=400, height=400))
-    content.append(Spacer(1, 15))
+    content.append(Paragraph("📊 Prestatie-overzicht", subtitle_style))
+    content.append(Spacer(1, 10))
+    content.append(Image(img, width=420, height=420))
 
+    content.append(Spacer(1, 20))
+
+    # =========================
+    # SCORES TABEL (BELANGRIJK DESIGN-IMPROVEMENT)
+    # =========================
+
+    data = [["Categorie", "Groep", "Klas"]]
+    for i, l in enumerate(labels):
+        data.append([l, round(scores[i],1), round(klas_scores[i],1)])
+
+    table = Table(data, colWidths=[200, 80, 80])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#2E4057")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0,0), (-1,0), 10),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,1), (-1,-1), colors.whitesmoke),
+    ]))
+
+    content.append(Paragraph("📈 Scores overzicht", subtitle_style))
+    content.append(Spacer(1, 10))
+    content.append(table)
+
+    content.append(Spacer(1, 20))
+
+    # =========================
     # WORDCLOUDS
+    # =========================
+
     positief, werkpunt = analyseer_groep(groep_df)
 
     pos_img = maak_wordcloud(positief, "Greens")
     neg_img = maak_wordcloud(werkpunt, "Reds")
 
-    content.append(Paragraph("POSITIEVE FEEDBACK", styles["Heading2"]))
+    content.append(Paragraph("👍 Sterke punten", subtitle_style))
     content.append(Image(pos_img, width=300, height=150))
-    content.append(Spacer(1, 10))
 
-    content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
+    content.append(Spacer(1, 15))
+
+    content.append(Paragraph("👎 Werkpunten", subtitle_style))
     content.append(Image(neg_img, width=300, height=150))
+
+    # =========================
+    # FOOTER NOTE
+    # =========================
+
+    content.append(Spacer(1, 20))
+    content.append(Paragraph(
+        "Dit rapport werd automatisch gegenereerd op basis van peer feedback data.",
+        body
+    ))
 
     doc.build(content)
     buffer.seek(0)
