@@ -235,7 +235,7 @@ def maak_pdf(groep, scores, klas_scores, analyse):
         bottomMargin=35
     )
 
-    styles = maak_styles()
+    styles = getSampleStyleSheet()
 
     content = []
 
