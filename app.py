@@ -227,23 +227,23 @@ if mode == "✍️ Leerlingen":
 
     with st.form("form"):
 
-    presence = st.slider("Presence", 1, 7, 5)
-    taal = st.slider("Taal", 1, 7, 5)
-    contact = st.slider("Contact", 1, 7, 5)
-    visual = st.slider("Visual", 1, 7, 5)
-    vragen = st.slider("Vragen", 1, 7, 5)
+        presence = st.slider("Presence", 1, 7, 5)
+        taal = st.slider("Taal", 1, 7, 5)
+        contact = st.slider("Contact", 1, 7, 5)
+        visual = st.slider("Visual", 1, 7, 5)
+        vragen = st.slider("Vragen", 1, 7, 5)
 
-    st.markdown("### 👍 Positieve punten")
-    positief = []
-    for i, opt in enumerate(positieve_opties):
-        if st.checkbox(opt, key=f"pos_{i}"):
-            positief.append(opt)
+        st.markdown("### 👍 Positieve punten")
+        positief = []
+        for i, opt in enumerate(positieve_opties):
+            if st.checkbox(opt, key=f"pos_{i}"):
+                positief.append(opt)
 
-    st.markdown("### 👎 Werkpunten")
-    werkpunt = []
-    for i, opt in enumerate(negatieve_opties):
-        if st.checkbox(opt, key=f"neg_{i}"):
-            werkpunt.append(opt)
+        st.markdown("### 👎 Werkpunten")
+        werkpunt = []
+        for i, opt in enumerate(negatieve_opties):
+            if st.checkbox(opt, key=f"neg_{i}"):
+                werkpunt.append(opt)
 
     # 👇 MOET BINNEN FORM STAAN
     submit = st.form_submit_button("Opslaan")
