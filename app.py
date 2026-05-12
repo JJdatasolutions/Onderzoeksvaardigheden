@@ -168,7 +168,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     from datetime import datetime
 
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
-    from reportlab.lib import colors as rl_colors   # 🔥 FIX
+    from reportlab.lib import colors as rl_colors
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.pagesizes import A4
 
@@ -178,14 +178,15 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     styles = getSampleStyleSheet()
 
     # =========================
-    # STYLES
+    # STYLES (SAFE)
     # =========================
 
-    title_style = styles["Title"]
-    subtitle_style = styles["Heading2"]
-    body_style = styles["BodyText"]
+    title = styles["Title"]
+    h2 = styles["Heading2"]
+    body = styles["BodyText"]
 
-    subtitle_style.textColor = rl_colors.HexColor("#2E4057")
+    # ❗ ALLEEN rl_colors gebruiken
+    h2.textColor = rl_colors.HexColor("#2E4057")
 
     content = []
 
@@ -193,10 +194,9 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     # HEADER
     # =========================
 
-    content.append(Paragraph("🎓 Peer Feedback Rapport", title_style))
-    content.append(Paragraph(f"Groep: {groep}", body_style))
-    content.append(Paragraph(f"Datum: {datetime.now().strftime('%d/%m/%Y')}", body_style))
-
+    content.append(Paragraph("🎓 Peer Feedback Rapport", title))
+    content.append(Paragraph(f"Groep: {groep}", body))
+    content.append(Paragraph(f"Datum: {datetime.now().strftime('%d/%m/%Y')}", body))
     content.append(Spacer(1, 15))
 
     # =========================
@@ -227,7 +227,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     img.seek(0)
     plt.close()
 
-    content.append(Paragraph("📊 Overzicht", subtitle_style))
+    content.append(Paragraph("📊 Overzicht", h2))
     content.append(Image(img, width=420, height=420))
 
     content.append(Spacer(1, 20))
@@ -237,6 +237,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     # =========================
 
     table_data = [["Categorie", "Groep", "Klas"]]
+
     for i, l in enumerate(labels):
         table_data.append([l, round(scores[i],1), round(klas_scores[i],1)])
 
@@ -259,7 +260,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     content.append(Spacer(1, 20))
     content.append(Paragraph(
         "Automatisch gegenereerd rapport op basis van peer feedback.",
-        body_style
+        body
     ))
 
     doc.build(content)
