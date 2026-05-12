@@ -129,9 +129,12 @@ def radar(scores, klas_scores, labels):
 def maak_wordcloud(woorden, kleur):
 
     if len(woorden) == 0:
-        woorden = ["geen data"]
+        woorden = ["geen_data"]
 
-    tekst = " ".join(woorden)
+    # 👉 BELANGRIJK: spaties behouden via underscore
+    woorden_clean = [w.replace(" ", "_") for w in woorden]
+
+    tekst = " ".join(woorden_clean)
 
     wc = WordCloud(
         width=800,
@@ -151,7 +154,6 @@ def maak_wordcloud(woorden, kleur):
     plt.close()
 
     return buf
-
 # =========================
 # ANALYSE
 # =========================
