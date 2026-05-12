@@ -136,41 +136,63 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
     # -------------------------
-    # 1. Analyse sterke/zwakke punten
+    # 1. Analyse per criterium
     # -------------------------
 
     sterk = []
     zwak = []
 
     for i, s in enumerate(scores):
-        klas = klas_scores[i] if klas_scores[i] else 0
+        klas = klas_scores[i]
 
-        if s >= 6:
+        if s >= 6 and s >= klas:
             sterk.append(labels[i])
         elif s < klas:
             zwak.append(labels[i])
 
     # -------------------------
-    # 2. Tekst analyse (simpel NLP patroon)
+    # 2. Tekstanalyse (ECHTE variatie per groep)
     # -------------------------
 
-    woorden = tekst.lower().split()
-    woord_aantal = len(woorden)
+    tekst_lower = tekst.lower()
 
-    toon = "positief" if any(w in woorden for w in ["goed", "sterk", "duidelijk", "fijn"]) else "neutraal"
+    positieve_woorden = ["goed", "sterk", "duidelijk", "vlot", "interessant", "fijn", "goed voorbereid"]
+    negatieve_woorden = ["onduidelijk", "onzeker", "stil", "chaotisch", "moeilijk", "te snel", "te traag"]
+
+    pos_count = sum(1 for w in positieve_woorden if w in tekst_lower)
+    neg_count = sum(1 for w in negatieve_woorden if w in tekst_lower)
+
+    if pos_count > neg_count:
+        toon = "overwegend positief"
+    elif neg_count > pos_count:
+        toon = "kritisch"
+    else:
+        toon = "gemengd"
 
     # -------------------------
-    # 3. AI-achtige samenvatting (gegenereerd)
+    # 3. Dynamische samenvatting (verschilt per groep!)
     # -------------------------
 
-    samenvatting = (
-        f"De groep behaalt een gemiddelde score van {avg}/7. "
-        f"De feedback toont een {toon} beeld van de presentatie. "
-        f"Er werd vooral gelet op communicatie, structuur en visuele ondersteuning."
-    )
+    samenvatting = f"""
+De groep behaalt een gemiddelde score van {avg}/7.
+
+De feedback is {toon} en toont duidelijke aandacht voor presentatievaardigheden.
+Er is vooral commentaar op {', '.join(zwak) if zwak else 'een stabiel niveau over alle onderdelen'}.
+"""
 
     # -------------------------
-    # 4. Rapport opbouw
+    # 4. Variabele conclusie
+    # -------------------------
+
+    if avg >= 6:
+        conclusie = "De presentatie is sterk uitgewerkt en professioneel gebracht."
+    elif avg >= 5:
+        conclusie = "De presentatie is degelijk met ruimte voor verfijning."
+    else:
+        conclusie = "De presentatie toont duidelijke groeimogelijkheden."
+
+    # -------------------------
+    # 5. Eindrapport
     # -------------------------
 
     feedback = f"""
@@ -178,13 +200,13 @@ SAMENVATTING
 {samenvatting}
 
 STERKE PUNTEN
-{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar stabiel niveau over alle criteria."}
+{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar een stabiel basisniveau."}
 
 VERBETERPUNTEN
-{", ".join(zwak) if zwak else "Geen grote zwakke punten ten opzichte van klasgemiddelde."}
+{", ".join(zwak) if zwak else "Geen duidelijke zwakke punten t.o.v. klasgemiddelde."}
 
-EINDCONCLUSIE
-De presentatie toont een { "sterk" if avg >= 5.5 else "ontwikkelend" } niveau met duidelijke aandacht voor verbetering.
+CONCLUSIE
+{conclusie}
 """
 
     return {
