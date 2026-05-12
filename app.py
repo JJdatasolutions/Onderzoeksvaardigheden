@@ -12,14 +12,11 @@ from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
-    Image,
-    Table,
-    TableStyle
+    Image
 )
 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
 
 # =========================
 # CONFIG
@@ -54,7 +51,7 @@ def load_data():
 df = load_data()
 
 # =========================
-# STELLINGEN (ALLE ZICHTBAAR)
+# OPTIES
 # =========================
 
 positieve_opties = [
@@ -112,13 +109,13 @@ def radar(scores, klas_scores, labels):
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
         height=500,
-        showlegend=True   # 👈 belangrijk
+        showlegend=True
     )
 
     return fig
 
 # =========================
-# GROEP ANALYSE
+# ANALYSE
 # =========================
 
 def analyseer_groep(groep_df):
@@ -138,7 +135,7 @@ def analyseer_groep(groep_df):
     )
 
 # =========================
-# PDF RADAR (met LEGEND)
+# PDF RADAR
 # =========================
 
 def radar_pdf(scores, klas_scores, labels):
@@ -161,8 +158,7 @@ def radar_pdf(scores, klas_scores, labels):
     ax.set_xticklabels(labels)
     ax.set_ylim(0, 7)
 
-    # ✅ LEGEND TOEGEVOEGD
-    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+    ax.legend()
 
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png", dpi=200, bbox_inches="tight")
@@ -185,20 +181,18 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
 
     content = []
 
-    # TITLE
     content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
     content.append(Spacer(1, 20))
 
-    # RADAR
     img = radar_pdf(scores, klas_scores, labels)
     content.append(Image(img, width=400, height=400))
     content.append(Spacer(1, 20))
 
-    # ANALYSE
     top_pos, top_neg = analyseer_groep(groep_df)
 
     content.append(Paragraph("STERKE PUNTEN", styles["Heading2"]))
     content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
+
     content.append(Spacer(1, 10))
 
     content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
@@ -234,47 +228,45 @@ if mode == "✍️ Leerlingen":
         vragen = st.slider("Vragen", 1, 7, 5)
 
         st.markdown("### 👍 Positieve punten")
-        positief = []
-        for i, opt in enumerate(positieve_opties):
-            if st.checkbox(opt, key=f"pos_{i}"):
-                positief.append(opt)
+        positief = [
+            opt for i, opt in enumerate(positieve_opties)
+            if st.checkbox(opt, key=f"pos_{i}")
+        ][:3]
 
         st.markdown("### 👎 Werkpunten")
-        werkpunt = []
-        for i, opt in enumerate(negatieve_opties):
-            if st.checkbox(opt, key=f"neg_{i}"):
-                werkpunt.append(opt)
+        werkpunt = [
+            opt for i, opt in enumerate(negatieve_opties)
+            if st.checkbox(opt, key=f"neg_{i}")
+        ][:3]
 
-    # 👇 MOET BINNEN FORM STAAN
-    submit = st.form_submit_button("Opslaan")
+        submit = st.form_submit_button("Opslaan")
 
+    if submit:
 
-# 👇 BUITEN FORM
-if submit:
+        new = {
+            "groep": groep,
+            "presence": presence,
+            "taal": taal,
+            "contact": contact,
+            "visual": visual,
+            "vragen": vragen,
 
-    new = {
-        "groep": groep,
-        "presence": presence,
-        "taal": taal,
-        "contact": contact,
-        "visual": visual,
-        "vragen": vragen,
+            "positief_1": positief[0] if len(positief)>0 else None,
+            "positief_2": positief[1] if len(positief)>1 else None,
+            "positief_3": positief[2] if len(positief)>2 else None,
 
-        "positief_1": positief[0] if len(positief)>0 else None,
-        "positief_2": positief[1] if len(positief)>1 else None,
-        "positief_3": positief[2] if len(positief)>2 else None,
+            "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
+            "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
+            "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
 
-        "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
-        "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
-        "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
+            "tijdstip": datetime.now()
+        }
 
-        "tijdstip": datetime.now()
-    }
+        df2 = pd.concat([df, pd.DataFrame([new])])
+        df2.to_csv(BESTAND, index=False)
 
-    df2 = pd.concat([df, pd.DataFrame([new])])
-    df2.to_csv(BESTAND, index=False)
+        st.success("Opgeslagen!")
 
-    st.success("Opgeslagen!")
 # =========================
 # LEERKRACHT
 # =========================
@@ -305,8 +297,10 @@ if mode == "📊 Leerkracht":
         df["vragen"].mean()
     ]
 
-    st.plotly_chart(radar(scores, klas_scores, ["Presence","Taal","Contact","Visual","Vragen"]),
-                    use_container_width=True)
+    st.plotly_chart(
+        radar(scores, klas_scores, ["Presence","Taal","Contact","Visual","Vragen"]),
+        use_container_width=True
+    )
 
     pdf = maak_pdf(groep, scores, klas_scores, groep_df)
 
