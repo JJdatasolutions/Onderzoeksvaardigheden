@@ -227,54 +227,49 @@ if mode == "✍️ Leerlingen":
 
     with st.form("form"):
 
-        presence = st.slider("Presence", 1, 7, 5)
-        taal = st.slider("Taal", 1, 7, 5)
-        contact = st.slider("Contact", 1, 7, 5)
-        visual = st.slider("Visual", 1, 7, 5)
-        vragen = st.slider("Vragen", 1, 7, 5)
+    presence = st.slider("Presence", 1, 7, 5)
+    taal = st.slider("Taal", 1, 7, 5)
+    contact = st.slider("Contact", 1, 7, 5)
+    visual = st.slider("Visual", 1, 7, 5)
+    vragen = st.slider("Vragen", 1, 7, 5)
 
-# =========================
-# POSITIEVE PUNTEN (3 kolommen)
-# =========================
+    # =========================
+    # POSITIEVE PUNTEN
+    # =========================
 
-st.subheader("👍 Positieve punten")
+    st.markdown("### 👍 Positieve punten")
 
-cols = st.columns(3)
+    cols = st.columns(3)
+    positief = []
 
-positief = []
+    for i, opt in enumerate(positieve_opties):
+        col = cols[i % 3]
+        if col.checkbox(opt, key=f"pos_{i}"):
+            positief.append(opt)
 
-for i, opt in enumerate(positieve_opties):
-    col = cols[i % 3]
-    if col.checkbox(opt, key=f"pos_{i}"):
-        positief.append(opt)
+    positief = positief[:3]
 
-positief = positief[:3]
+    # =========================
+    # WERKPUNTEN
+    # =========================
 
+    st.markdown("### 👎 Werkpunten")
 
-# =========================
-# WERKPUNTEN (3 kolommen)
-# =========================
+    cols = st.columns(3)
+    werkpunt = []
 
-st.subheader("👎 Werkpunten")
+    for i, opt in enumerate(negatieve_opties):
+        col = cols[i % 3]
+        if col.checkbox(opt, key=f"neg_{i}"):
+            werkpunt.append(opt)
 
-cols = st.columns(3)
+    werkpunt = werkpunt[:3]
 
-werkpunt = []
+    # =========================
+    # SUBMIT
+    # =========================
 
-for i, opt in enumerate(negatieve_opties):
-    col = cols[i % 3]
-    if col.checkbox(opt, key=f"neg_{i}"):
-        werkpunt.append(opt)
-
-werkpunt = werkpunt[:3]
-
-
-# =========================
-# SUBMIT (MOET BINNEN FORM BLIJVEN)
-# =========================
-
-submit = st.form_submit_button("Opslaan")
-
+    submit = st.form_submit_button("Opslaan")
         if submit:
 
             new = {
