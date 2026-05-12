@@ -140,12 +140,32 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
             "https://api-inference.huggingface.co/models/google/flan-t5-large",
             headers={"Authorization": f"Bearer {hf_token}"},
             json={"inputs": tekst[:1500]},
-            timeout=25
+            timeout=30
         )
 
-        data = response.json()
+        # 🔴 BELANGRIJK: eerst raw text checken
+        if response.status_code != 200:
+            return {
+                "gemiddelde": avg,
+                "feedback": f"HF HTTP error {response.status_code}: {response.text[:200]}",
+                "positief": [],
+                "verbeter": [],
+                "profiel": "Onbekend"
+            }
 
-        # 🔴 CASE 1: API geeft error
+        # 🔴 probeer JSON veilig te parsen
+        try:
+            data = response.json()
+        except Exception:
+            return {
+                "gemiddelde": avg,
+                "feedback": f"Geen JSON response: {response.text[:200]}",
+                "positief": [],
+                "verbeter": [],
+                "profiel": "Onbekend"
+            }
+
+        # 🔴 API error object
         if isinstance(data, dict) and "error" in data:
             return {
                 "gemiddelde": avg,
@@ -155,11 +175,11 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
                 "profiel": "Onbekend"
             }
 
-        # 🔴 CASE 2: onverwachte structuur
+        # 🔴 onverwachte structuur
         if not isinstance(data, list):
             return {
                 "gemiddelde": avg,
-                "feedback": f"Onverwachte response: {data}",
+                "feedback": str(data),
                 "positief": [],
                 "verbeter": [],
                 "profiel": "Onbekend"
@@ -170,7 +190,7 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
     except Exception as e:
         return {
             "gemiddelde": avg,
-            "feedback": f"AI fout: {str(e)}",
+            "feedback": f"Request error: {str(e)}",
             "positief": [],
             "verbeter": [],
             "profiel": "Onbekend"
