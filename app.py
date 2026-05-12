@@ -7,6 +7,7 @@ from datetime import datetime
 import os
 import io
 from collections import Counter
+from wordcloud import WordCloud
 
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -67,7 +68,7 @@ negatieve_opties = [
 ]
 
 # =========================
-# MAX 3 SELECTIE UI
+# MAX 3 SELECTIE
 # =========================
 
 def checkbox_limited(options, prefix):
@@ -78,7 +79,6 @@ def checkbox_limited(options, prefix):
 
     for i, opt in enumerate(options):
 
-        # disable zodra 3 gekozen zijn
         disabled = len(temp) >= 3
 
         checked = cols[i % 3].checkbox(
@@ -123,7 +123,37 @@ def radar(scores, klas_scores, labels):
     return fig
 
 # =========================
-# ANALYSE PDF
+# WORDCLOUDS
+# =========================
+
+def maak_wordcloud(woorden, kleur):
+
+    if len(woorden) == 0:
+        woorden = ["geen data"]
+
+    tekst = " ".join(woorden)
+
+    wc = WordCloud(
+        width=800,
+        height=400,
+        background_color="white",
+        colormap=kleur,
+        collocations=False
+    ).generate(tekst)
+
+    fig, ax = plt.subplots()
+    ax.imshow(wc, interpolation="bilinear")
+    ax.axis("off")
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", dpi=200)
+    buf.seek(0)
+    plt.close()
+
+    return buf
+
+# =========================
+# ANALYSE
 # =========================
 
 def analyseer_groep(groep_df):
@@ -159,7 +189,7 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
     content.append(Spacer(1, 20))
 
-    # radar image
+    # RADAR
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
 
@@ -167,12 +197,14 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     klas_plot = klas_scores + klas_scores[:1]
 
     fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
+
     ax.plot(angles, klas_plot, linestyle="dashed", label="Klas")
     ax.plot(angles, scores_plot, label="Groep")
     ax.fill(angles, scores_plot, alpha=0.3)
+
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
-    ax.set_ylim(0,7)
+    ax.set_ylim(0, 7)
     ax.legend()
 
     img = io.BytesIO()
@@ -181,16 +213,20 @@ def maak_pdf(groep, scores, klas_scores, groep_df):
     plt.close()
 
     content.append(Image(img, width=400, height=400))
-    content.append(Spacer(1, 20))
+    content.append(Spacer(1, 15))
 
+    # WORDCLOUDS
     top_pos, top_neg = analyseer_groep(groep_df)
 
-    content.append(Paragraph("STERKE PUNTEN", styles["Heading2"]))
-    content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
+    pos_img = maak_wordcloud(top_pos, "Greens")
+    neg_img = maak_wordcloud(top_neg, "Reds")
+
+    content.append(Paragraph("POSITIEVE FEEDBACK", styles["Heading2"]))
+    content.append(Image(pos_img, width=300, height=150))
     content.append(Spacer(1, 10))
 
     content.append(Paragraph("WERKPUNTEN", styles["Heading2"]))
-    content.append(Paragraph(", ".join(top_neg) if top_neg else "Geen data", styles["BodyText"]))
+    content.append(Image(neg_img, width=300, height=150))
 
     doc.build(content)
     buffer.seek(0)
