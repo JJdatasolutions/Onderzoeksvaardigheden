@@ -227,12 +227,11 @@ if mode == "✍️ Leerlingen":
 
     with st.form("form"):
 
-    presence = st.slider("Presence", 1, 7, 5)
-    taal = st.slider("Taal", 1, 7, 5)
-    contact = st.slider("Contact", 1, 7, 5)
-    visual = st.slider("Visual", 1, 7, 5)
-    vragen = st.slider("Vragen", 1, 7, 5)
-
+        presence = st.slider("Presence", 1, 7, 5)
+        taal = st.slider("Taal", 1, 7, 5)
+        contact = st.slider("Contact", 1, 7, 5)
+        visual = st.slider("Visual", 1, 7, 5)
+        vragen = st.slider("Vragen", 1, 7, 5)
     # =========================
     # POSITIEVE PUNTEN
     # =========================
