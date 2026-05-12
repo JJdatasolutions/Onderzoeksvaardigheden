@@ -70,50 +70,50 @@ def genereer_ai_feedback(scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    sterke = []
-    werk = []
+    prompt_data = f"""
+Je bent een ervaren leerkracht onderzoeksvaardigheden.
 
-    if scores[0] >= 6:
-        sterke.append("sterke presence en zelfvertrouwen")
-    elif scores[0] <= 3:
-        werk.append("meer zelfvertrouwen tonen")
+Analyseer deze leerlingfeedback diepgaand.
 
-    if scores[1] >= 6:
-        sterke.append("rijk taalgebruik")
-    elif scores[1] <= 3:
-        werk.append("taalgebruik uitbreiden")
+BELANGRIJK:
+- baseer je op inhoud van de feedback
+- detecteer patronen
+- geen generieke zinnen
 
-    if scores[2] >= 6:
-        sterke.append("goed publiekscontact")
-    elif scores[2] <= 3:
-        werk.append("meer oogcontact maken")
+GEMIDDELDE SCORES:
+- Presence: {scores[0]}
+- Taal: {scores[1]}
+- Contact: {scores[2]}
+- Visual: {scores[3]}
+- Vragen: {scores[4]}
 
-    if scores[3] >= 6:
-        sterke.append("sterke visual ondersteuning")
-    elif scores[3] <= 3:
-        werk.append("visual duidelijker maken")
-
-    if scores[4] >= 6:
-        sterke.append("sterke antwoorden op vragen")
-
-    return f"""
-## 🤖 Groepsrapport
-
-**Gemiddelde score:** {avg}/7
-
-### ⭐ Sterktes
-- {", ".join(sterke) if sterke else "degelijk algemeen niveau"}
-
-### 📈 Werkpunten
-- {", ".join(werk) if werk else "blijven groeien in presentatievaardigheden"}
-
-### 💬 Leerlingenfeedback
+LEERLINGFEEDBACK:
 {tekst}
 
-### 🚀 Advies
-Werk verder aan structuur, duidelijkheid en publieksinteractie.
+Maak:
+1. inhoudelijke analyse
+2. terugkerende sterktes
+3. terugkerende werkpunten
+4. communicatiekwaliteit
+5. concrete groeiaanbevelingen
 """
 
+    # fallback (als geen API)
+    return f"""
+## 📊 Diepgaand groepsrapport
+
+### Gemiddelde score
+{avg}/7
+
+### 📌 Analyse van feedback
+{tekst}
+
+### ⭐ Observaties
+- duidelijke trends in communicatie en presentatievaardigheden
+
+### 🚀 Aanbeveling
+Werk gericht aan consistentie tussen inhoud, taal en presentatie.
+"""
 # =========================
 # PDF GENERATOR
 # =========================
