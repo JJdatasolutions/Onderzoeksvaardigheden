@@ -135,63 +135,57 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
 
     hf_token = st.secrets.get("HF_TOKEN")
 
-    # 🔒 fallback als geen token
     if not hf_token:
         return {
             "gemiddelde": avg,
-            "feedback": "Geen HF_TOKEN gevonden in Streamlit Secrets.",
+            "feedback": "Geen HF_TOKEN gevonden.",
             "positief": [],
             "verbeter": [],
             "profiel": "Onbekend"
         }
 
-    url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+    url = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
 
     headers = {
         "Authorization": f"Bearer {hf_token}"
     }
 
     prompt = f"""
-Je bent een ervaren docent en presentatiecoach.
+Je bent een ervaren docent.
 
-Analyseer deze leerlingfeedback en geef een duidelijke, gestructureerde evaluatie.
+Geef een duidelijke analyse van deze presentatiefeedback.
 
-PEER FEEDBACK:
+TEKST:
 {tekst[:1500]}
 
 SCORES:
-- Presence: {scores[0]}
-- Taal: {scores[1]}
-- Contact: {scores[2]}
-- Visual: {scores[3]}
-- Vragen: {scores[4]}
+Presence {scores[0]}
+Taal {scores[1]}
+Contact {scores[2]}
+Visual {scores[3]}
+Vragen {scores[4]}
 
-KLASGEMIDDELDE:
-- Presence: {klas_scores[0]}
-- Taal: {klas_scores[1]}
-- Contact: {klas_scores[2]}
-- Visual: {klas_scores[3]}
-- Vragen: {klas_scores[4]}
-
-STRUCTUUR ANTWOORD:
-1. Samenvatting (±120-150 woorden)
-2. Sterke punten (3 bullets)
-3. Verbeterpunten (3 bullets)
-4. Eindconclusie (1 zin)
+STRUCTUUR:
+- Samenvatting (±150 woorden)
+- 3 sterke punten
+- 3 verbeterpunten
+- 1 conclusiezin
 """
 
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 400,
-            "temperature": 0.7
-        }
-    }
-
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            url,
+            headers=headers,
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": 400,
+                    "temperature": 0.7
+                }
+            },
+            timeout=30
+        )
 
-        # 🔴 HTTP error check
         if response.status_code != 200:
             return {
                 "gemiddelde": avg,
@@ -203,7 +197,6 @@ STRUCTUUR ANTWOORD:
 
         data = response.json()
 
-        # 🔴 error response check
         if isinstance(data, dict) and "error" in data:
             return {
                 "gemiddelde": avg,
@@ -213,7 +206,6 @@ STRUCTUUR ANTWOORD:
                 "profiel": "Onbekend"
             }
 
-        # 🔴 onverwachte structuur
         if not isinstance(data, list):
             return {
                 "gemiddelde": avg,
@@ -223,12 +215,12 @@ STRUCTUUR ANTWOORD:
                 "profiel": "Onbekend"
             }
 
-        output = data[0].get("generated_text", "Geen output van AI.")
+        output = data[0].get("generated_text", "Geen output")
 
     except Exception as e:
         return {
             "gemiddelde": avg,
-            "feedback": f"AI request fout: {str(e)}",
+            "feedback": f"Request error: {str(e)}",
             "positief": [],
             "verbeter": [],
             "profiel": "Onbekend"
