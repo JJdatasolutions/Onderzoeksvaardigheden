@@ -118,7 +118,7 @@ Werk gericht aan consistentie tussen inhoud, taal en presentatie.
 # PDF GENERATOR
 # =========================
 
-def maak_pdf(groep, rapport):
+def maak_pdf(groep, groep_df, scores, klas_scores, rapport):
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
@@ -126,18 +126,38 @@ def maak_pdf(groep, rapport):
     styles = getSampleStyleSheet()
     content = []
 
-    content.append(Paragraph(f"Groepsrapport: {groep}", styles["Title"]))
+    # TITLE
+    content.append(Paragraph(f"<b>Groepsrapport: {groep}</b>", styles["Title"]))
     content.append(Spacer(1, 12))
+
+    # STUDENT LIST
+    namen = ", ".join(groep_df["groep"].astype(str).tolist())
+    content.append(Paragraph(f"<b>Evaluaties door:</b> {namen}", styles["BodyText"]))
+    content.append(Spacer(1, 12))
+
+    # SCORES SECTION
+    content.append(Paragraph("<b>Gemiddelde groepsscores</b>", styles["Heading2"]))
+    content.append(Spacer(1, 8))
+
+    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
+
+    for i, label in enumerate(labels):
+        content.append(Paragraph(f"{label}: {round(scores[i],1)}/7", styles["BodyText"]))
+
+    content.append(Spacer(1, 12))
+
+    # AI REPORT
+    content.append(Paragraph("<b>Analyse</b>", styles["Heading2"]))
+    content.append(Spacer(1, 8))
 
     for line in rapport.split("\n"):
         content.append(Paragraph(line, styles["BodyText"]))
-        content.append(Spacer(1, 6))
+        content.append(Spacer(1, 4))
 
     doc.build(content)
     buffer.seek(0)
 
     return buffer
-
 # =========================
 # UI
 # =========================
