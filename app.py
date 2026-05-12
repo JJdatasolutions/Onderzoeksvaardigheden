@@ -226,8 +226,7 @@ if mode == "✍️ Leerlingen":
         visual = st.slider("Visual", 1, 7, 5)
         vragen = st.slider("Vragen", 1, 7, 5)
 
-        st.markdown("### 👍 Positieve punten")
-
+        st.markdown("### 👍 Positieve punten (max 3)")
         cols = st.columns(3)
         positief = []
 
@@ -235,14 +234,21 @@ if mode == "✍️ Leerlingen":
             if cols[i % 3].checkbox(opt, key=f"pos_{i}"):
                 positief.append(opt)
 
-        st.markdown("### 👎 Werkpunten")
+        if len(positief) > 3:
+            st.error("Maximaal 3 positieve punten toegestaan.")
+            st.stop()
 
+        st.markdown("### 👎 Werkpunten (max 3)")
         cols = st.columns(3)
         werkpunt = []
 
         for i, opt in enumerate(negatieve_opties):
             if cols[i % 3].checkbox(opt, key=f"neg_{i}"):
                 werkpunt.append(opt)
+
+        if len(werkpunt) > 3:
+            st.error("Maximaal 3 werkpunten toegestaan.")
+            st.stop()
 
         submit = st.form_submit_button("Opslaan")
 
