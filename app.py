@@ -7,23 +7,17 @@ import numpy as np
 from datetime import datetime
 import os
 import io
+from collections import Counter
 
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
-    Image,
-    Table,
-    TableStyle,
-    HRFlowable
+    Image
 )
 
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.enums import TA_CENTER
-
-import requests
 
 # =========================
 # CONFIG
@@ -47,12 +41,6 @@ GROEPEN = [
 ]
 
 # =========================
-# SECRETS (SAFE)
-# =========================
-
-HF_TOKEN = st.secrets.get("HF_TOKEN", None)
-
-# =========================
 # DATA
 # =========================
 
@@ -64,7 +52,41 @@ def load_data():
 df = load_data()
 
 # =========================
-# RADAR CHART
+# STELLINGEN (UITGEBREID)
+# =========================
+
+positieve_opties = [
+    "Duidelijke presentatie",
+    "Goede samenwerking",
+    "Sterke visuals",
+    "Goede structuur",
+    "Zelfzeker gebracht",
+    "Goede timing",
+    "Goede uitleg",
+    "Goede lichaamstaal",
+    "Sterke voorbereiding",
+    "Publiek betrokken",
+    "Duidelijke stem",
+    "Goede interactie",
+]
+
+negatieve_opties = [
+    "Te snel gepresenteerd",
+    "Weinig oogcontact",
+    "Onvoldoende structuur",
+    "Zenuwachtig",
+    "Te weinig uitleg",
+    "Slechte timing",
+    "Onduidelijke uitleg",
+    "Monotone stem",
+    "Te weinig voorbereiding",
+    "Publiek niet betrokken",
+    "Onzeker gedrag",
+    "Slides te druk"
+]
+
+# =========================
+# RADAR
 # =========================
 
 def radar(scores, klas_scores, labels):
@@ -75,7 +97,7 @@ def radar(scores, klas_scores, labels):
         r=klas_scores + [klas_scores[0]],
         theta=labels + [labels[0]],
         fill='toself',
-        name="Klasgemiddelde",
+        name="Klas",
         opacity=0.2
     ))
 
@@ -89,13 +111,36 @@ def radar(scores, klas_scores, labels):
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 7])),
-        height=550
+        height=500
     )
 
     return fig
 
 # =========================
-# RADAR PDF
+# GROEP ANALYSE
+# =========================
+
+def analyseer_groep(groep_df):
+
+    positief = []
+    werkpunt = []
+
+    for col in ["positief_1","positief_2","positief_3"]:
+        positief += groep_df[col].dropna().tolist()
+
+    for col in ["werkpunt_1","werkpunt_2","werkpunt_3"]:
+        werkpunt += groep_df[col].dropna().tolist()
+
+    pos_count = Counter(positief)
+    neg_count = Counter(werkpunt)
+
+    top_pos = [x[0] for x in pos_count.most_common(5)]
+    top_neg = [x[0] for x in neg_count.most_common(5)]
+
+    return top_pos, top_neg
+
+# =========================
+# PDF RADAR
 # =========================
 
 def radar_pdf(scores, klas_scores, labels):
@@ -106,180 +151,54 @@ def radar_pdf(scores, klas_scores, labels):
     scores = scores + scores[:1]
     klas_scores = klas_scores + klas_scores[:1]
 
-    fig, ax = plt.subplots(figsize=(6.5, 6.5), subplot_kw=dict(polar=True))
+    fig, ax = plt.subplots(figsize=(6,6), subplot_kw=dict(polar=True))
 
-    ax.plot(angles, klas_scores, linestyle="dashed", label="Klas")
+    ax.plot(angles, klas_scores, linestyle="dashed")
     ax.fill(angles, klas_scores, alpha=0.1)
 
-    ax.plot(angles, scores, label="Groep")
+    ax.plot(angles, scores)
     ax.fill(angles, scores, alpha=0.3)
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels)
-    ax.set_ylim(0, 7)
-    ax.legend()
+    ax.set_ylim(0,7)
 
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", bbox_inches="tight", dpi=200)
+    plt.savefig(buffer, format="png", dpi=200, bbox_inches="tight")
     buffer.seek(0)
     plt.close()
 
     return buffer
 
 # =========================
-# AI FEEDBACK (SAFE + FALLBACK)
+# PDF
 # =========================
 
-def genereer_ai_feedback(scores, klas_scores, tekst):
-
-    avg = round(sum(scores) / len(scores), 1)
-
-    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
-
-    # -------------------------
-    # 1. Sterktes & zwaktes (data-driven)
-    # -------------------------
-
-    sterk = []
-    zwak = []
-
-    for i, s in enumerate(scores):
-        if s >= 6:
-            sterk.append(labels[i])
-        elif s < klas_scores[i]:
-            zwak.append(labels[i])
-
-    # -------------------------
-    # 2. Tekstanalyse (betere signalen)
-    # -------------------------
-
-    tekst_l = tekst.lower()
-
-    positieve_signalen = sum([
-        "goed" in tekst_l,
-        "sterk" in tekst_l,
-        "duidelijk" in tekst_l,
-        "vlot" in tekst_l,
-        "interessant" in tekst_l,
-        "goed voorbereid" in tekst_l
-    ])
-
-    verbeter_signalen = sum([
-        "onduidelijk" in tekst_l,
-        "chaotisch" in tekst_l,
-        "stil" in tekst_l,
-        "te snel" in tekst_l,
-        "te traag" in tekst_l,
-        "onzeker" in tekst_l
-    ])
-
-    # -------------------------
-    # 3. Dynamische toon (belangrijk!)
-    # -------------------------
-
-    if positieve_signalen > verbeter_signalen:
-        toon = "positief"
-    elif verbeter_signalen > positieve_signalen:
-        toon = "kritisch"
-    else:
-        toon = "gemengd"
-
-    # -------------------------
-    # 4. Variabele zinnen (DIT maakt het “AI-achtig”)
-    # -------------------------
-
-    intro_templates = [
-        f"De groep behaalt een gemiddelde score van {avg}/7.",
-        f"De presentatie wordt beoordeeld met een gemiddelde van {avg}/7.",
-        f"De globale evaluatie komt uit op {avg}/7."
-    ]
-
-    analyse_templates = {
-        "positief": [
-            "De feedback is overwegend positief en toont een sterke uitvoering.",
-            "Er is duidelijk een goede voorbereiding zichtbaar in de presentatie.",
-            "De groep komt zelfzeker en gestructureerd over."
-        ],
-        "kritisch": [
-            "De feedback bevat enkele aandachtspunten die verbetering vragen.",
-            "Er zijn duidelijke groeimogelijkheden in de uitvoering.",
-            "De presentatie wisselt tussen sterke en zwakkere momenten."
-        ],
-        "gemengd": [
-            "De feedback toont een evenwicht tussen sterke en zwakkere elementen.",
-            "Er is zowel positieve als kritische feedback gegeven.",
-            "De presentatie is wisselend in kwaliteit."
-        ]
-    }
-
-    conclusie_templates = [
-        "Dit resultaat toont een duidelijk werkpunt richting volgende presentatie.",
-        "De groep heeft een solide basis maar kan verder verfijnen.",
-        "De presentatie is in ontwikkeling en toont potentieel.",
-        "De uitvoering is sterk maar nog niet volledig consistent."
-    ]
-
-    # -------------------------
-    # 5. Bouw rapport
-    # -------------------------
-
-    intro = random.choice(intro_templates)
-    analyse = random.choice(analyse_templates[toon])
-    conclusie = random.choice(conclusie_templates)
-
-    feedback = f"""
-SAMENVATTING
-{intro} {analyse}
-
-STERKE PUNTEN
-{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar een stabiel niveau."}
-
-VERBETERPUNTEN
-{", ".join(zwak) if zwak else "Geen duidelijke zwakke punten t.o.v. klasgemiddelde."}
-
-CONCLUSIE
-{conclusie}
-"""
-
-    return {
-        "gemiddelde": avg,
-        "feedback": feedback,
-        "positief": sterk,
-        "verbeter": zwak,
-        "profiel": "Presentator"
-    }
-# =========================
-# PDF EXPORT
-# =========================
-
-def maak_pdf(groep, scores, klas_scores, analyse):
+def maak_pdf(groep, scores, klas_scores, groep_df):
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
-
     styles = getSampleStyleSheet()
-
-    content = []
 
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
-    # TITLE
+    content = []
+
     content.append(Paragraph(f"Peer Feedback Rapport - {groep}", styles["Title"]))
     content.append(Spacer(1, 20))
 
-    # SCORE
-    content.append(Paragraph(f"Gemiddelde score: {analyse['gemiddelde']}/7", styles["Heading2"]))
-    content.append(Spacer(1, 10))
-
-    # RADAR
     img = radar_pdf(scores, klas_scores, labels)
     content.append(Image(img, width=400, height=400))
-
     content.append(Spacer(1, 20))
 
-    # AI TEXT
-    content.append(Paragraph("Analyse", styles["Heading2"]))
-    content.append(Paragraph(analyse["feedback"], styles["BodyText"]))
+    top_pos, top_neg = analyseer_groep(groep_df)
+
+    content.append(Paragraph("STERKE PUNTEN (door klas)", styles["Heading2"]))
+    content.append(Paragraph(", ".join(top_pos) if top_pos else "Geen data", styles["BodyText"]))
+    content.append(Spacer(1, 10))
+
+    content.append(Paragraph("WERKPUNTEN (door klas)", styles["Heading2"]))
+    content.append(Paragraph(", ".join(top_neg) if top_neg else "Geen data", styles["BodyText"]))
 
     doc.build(content)
     buffer.seek(0)
@@ -308,9 +227,13 @@ if mode == "✍️ Leerlingen":
         taal = st.slider("Taal", 1, 7, 5)
         contact = st.slider("Contact", 1, 7, 5)
         visual = st.slider("Visual", 1, 7, 5)
-        vragen = st.slider("Vragen", 0, 7, 5)
+        vragen = st.slider("Vragen", 1, 7, 5)
 
-        feedback = st.text_area("Feedback")
+        st.subheader("👍 Max 3 sterke punten")
+        positief = st.multiselect("Positief", positieve_opties, max_selections=3)
+
+        st.subheader("👎 Max 3 werkpunten")
+        werkpunt = st.multiselect("Werkpunten", negatieve_opties, max_selections=3)
 
         submit = st.form_submit_button("Opslaan")
 
@@ -323,7 +246,15 @@ if mode == "✍️ Leerlingen":
                 "contact": contact,
                 "visual": visual,
                 "vragen": vragen,
-                "feedback": feedback,
+
+                "positief_1": positief[0] if len(positief)>0 else None,
+                "positief_2": positief[1] if len(positief)>1 else None,
+                "positief_3": positief[2] if len(positief)>2 else None,
+
+                "werkpunt_1": werkpunt[0] if len(werkpunt)>0 else None,
+                "werkpunt_2": werkpunt[1] if len(werkpunt)>1 else None,
+                "werkpunt_3": werkpunt[2] if len(werkpunt)>2 else None,
+
                 "tijdstip": datetime.now()
             }
 
@@ -366,14 +297,10 @@ if mode == "📊 Leerkracht":
 
     st.plotly_chart(radar(scores, klas_scores, labels), use_container_width=True)
 
-    tekst = "\n".join(groep_df["feedback"].astype(str).tolist())
+    st.subheader("Analyse")
+    st.write("Automatische analyse op basis van 20+ leerlingen feedback")
 
-    analyse = genereer_ai_feedback(scores, klas_scores, tekst)
-
-    st.markdown("## AI Analyse")
-    st.write(analyse["feedback"])
-
-    pdf = maak_pdf(groep, scores, klas_scores, analyse)
+    pdf = maak_pdf(groep, scores, klas_scores, groep_df)
 
     st.download_button(
         "Download PDF",
