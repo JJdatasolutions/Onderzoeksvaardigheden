@@ -3,6 +3,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import os
+import io
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
 # =========================
 # CONFIG
@@ -12,7 +16,7 @@ st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
 
 BESTAND = "peer_feedback.csv"
 
-LEERKRACHT_PIN = "1234"  # 🔐 verander dit naar jouw geheime code
+LEERKRACHT_PIN = "1234"  # 🔐 wijzig dit
 
 GROEPEN = [
     "Asa en Stella",
@@ -59,7 +63,7 @@ def radar(scores, labels):
     return fig
 
 # =========================
-# AI FEEDBACK (fallback + simpel)
+# AI FEEDBACK (fallback)
 # =========================
 
 def genereer_ai_feedback(scores, tekst):
@@ -90,7 +94,7 @@ def genereer_ai_feedback(scores, tekst):
         werk.append("visual duidelijker maken")
 
     if scores[4] >= 6:
-        sterke.append("goede antwoorden op vragen")
+        sterke.append("sterke antwoorden op vragen")
 
     return f"""
 ## 🤖 Groepsrapport
@@ -98,7 +102,7 @@ def genereer_ai_feedback(scores, tekst):
 **Gemiddelde score:** {avg}/7
 
 ### ⭐ Sterktes
-- {", ".join(sterke) if sterke else "algemene degelijke presentatie"}
+- {", ".join(sterke) if sterke else "degelijk algemeen niveau"}
 
 ### 📈 Werkpunten
 - {", ".join(werk) if werk else "blijven groeien in presentatievaardigheden"}
@@ -107,8 +111,32 @@ def genereer_ai_feedback(scores, tekst):
 {tekst}
 
 ### 🚀 Advies
-Blijf werken aan duidelijkheid, structuur en publiekcontact.
+Werk verder aan structuur, duidelijkheid en publieksinteractie.
 """
+
+# =========================
+# PDF GENERATOR
+# =========================
+
+def maak_pdf(groep, rapport):
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer)
+
+    styles = getSampleStyleSheet()
+    content = []
+
+    content.append(Paragraph(f"Groepsrapport: {groep}", styles["Title"]))
+    content.append(Spacer(1, 12))
+
+    for line in rapport.split("\n"):
+        content.append(Paragraph(line, styles["BodyText"]))
+        content.append(Spacer(1, 6))
+
+    doc.build(content)
+    buffer.seek(0)
+
+    return buffer
 
 # =========================
 # UI
@@ -133,11 +161,11 @@ if mode == "✍️ Leerlingen: feedback geven":
 
         st.subheader(f"Evaluatie: {groep}")
 
-        presence = st.slider("Presence (1 = onzeker, 7 = zeer zelfzeker)", 1, 7, 5)
+        presence = st.slider("Presence (1-7)", 1, 7, 5)
         taal = st.slider("Rijke taal", 1, 7, 5)
         contact = st.slider("Publiekscontact", 1, 7, 5)
-        visual = st.slider("Visual ondersteuning", 1, 7, 5)
-        vragen = st.slider("Vragen (0 = niet van toepassing)", 0, 7, 5)
+        visual = st.slider("Visual", 1, 7, 5)
+        vragen = st.slider("Vragen (0 = n.v.t.)", 0, 7, 5)
 
         feedback = st.text_area("Woordelijke feedback")
 
@@ -172,7 +200,7 @@ if mode == "✍️ Leerlingen: feedback geven":
 
 if mode == "📊 Leerkracht: groepsrapport":
 
-    pin = st.text_input("Voer leerkracht-PIN in", type="password")
+    pin = st.text_input("Leerkracht-PIN", type="password")
 
     if pin != LEERKRACHT_PIN:
         st.warning("Geen toegang.")
@@ -183,7 +211,7 @@ if mode == "📊 Leerkracht: groepsrapport":
     groep = st.selectbox("Selecteer groep", GROEPEN)
 
     if df.empty:
-        st.warning("Nog geen data beschikbaar.")
+        st.warning("Geen data beschikbaar.")
         st.stop()
 
     groep_df = df[df["groep"] == groep]
@@ -206,7 +234,7 @@ if mode == "📊 Leerkracht: groepsrapport":
 
     labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
-    st.subheader(f"📊 Rapport: {groep}")
+    st.subheader(f"📊 Groepsrapport: {groep}")
 
     st.plotly_chart(radar(scores, labels), use_container_width=True)
 
@@ -214,14 +242,33 @@ if mode == "📊 Leerkracht: groepsrapport":
     st.metric("Aantal evaluaties", len(groep_df))
 
     # =========================
-    # TEKST SAMENVOEGEN
+    # TEKST FIX (BELANGRIJK)
     # =========================
 
     tekst = "\n".join(
-    groep_df["feedback"].fillna("").astype(str).tolist()
-)
+        groep_df["feedback"].fillna("").astype(str).tolist()
+    )
 
-    st.markdown(genereer_ai_feedback(scores, tekst))
+    # =========================
+    # RAPPORT
+    # =========================
+
+    rapport = genereer_ai_feedback(scores, tekst)
+
+    st.markdown(rapport)
+
+    # =========================
+    # PDF EXPORT
+    # =========================
+
+    pdf = maak_pdf(groep, rapport)
+
+    st.download_button(
+        "📄 Download PDF rapport",
+        data=pdf,
+        file_name=f"groepsrapport_{groep}.pdf",
+        mime="application/pdf"
+    )
 
 # =========================
 # DEBUG
