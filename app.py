@@ -233,18 +233,40 @@ if mode == "✍️ Leerlingen":
         visual = st.slider("Visual", 1, 7, 5)
         vragen = st.slider("Vragen", 1, 7, 5)
 
-        st.subheader("👍 Positieve punten")
-        positief = [
-            opt for opt in positieve_opties
-            if st.checkbox(opt)
-        ][:3]
+        # =========================
+# POSITIEVE PUNTEN (3 kolommen)
+# =========================
 
-        st.subheader("👎 Werkpunten")
-        werkpunt = [
-            opt for opt in negatieve_opties
-            if st.checkbox(opt)
-        ][:3]
+st.subheader("👍 Positieve punten")
 
+cols = st.columns(3)
+
+positief = []
+
+for i, opt in enumerate(positieve_opties):
+    col = cols[i % 3]
+    if col.checkbox(opt, key=f"pos_{i}"):
+        positief.append(opt)
+
+positief = positief[:3]
+
+
+# =========================
+# WERKPUNTEN (3 kolommen)
+# =========================
+
+st.subheader("👎 Werkpunten")
+
+cols = st.columns(3)
+
+werkpunt = []
+
+for i, opt in enumerate(negatieve_opties):
+    col = cols[i % 3]
+    if col.checkbox(opt, key=f"neg_{i}"):
+        werkpunt.append(opt)
+
+werkpunt = werkpunt[:3]
         submit = st.form_submit_button("Opslaan")
 
         if submit:
