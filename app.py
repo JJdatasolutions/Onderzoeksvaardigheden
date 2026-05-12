@@ -1,4 +1,3 @@
-st.write("SECRETS:", st.secrets)
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -29,6 +28,7 @@ import requests
 # CONFIG
 # =========================
 
+st.write("SECRETS:", st.secrets)
 st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
 
 BESTAND = "peer_feedback.csv"
