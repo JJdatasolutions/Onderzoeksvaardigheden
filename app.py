@@ -138,23 +138,25 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
     if not hf_token:
         return {
             "gemiddelde": avg,
-            "feedback": "Geen HF_TOKEN gevonden.",
+            "feedback": "Geen HF_TOKEN gevonden in Streamlit Secrets.",
             "positief": [],
             "verbeter": [],
             "profiel": "Onbekend"
         }
 
-    url = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+    url = "https://api-inference.huggingface.co/models/google/flan-t5-small"
 
-    headers = {"Authorization": f"Bearer {hf_token}"}
+    headers = {
+        "Authorization": f"Bearer {hf_token}"
+    }
 
     prompt = f"""
-Samenvatting van leerlingfeedback:
+Geef een korte, duidelijke analyse van deze feedback:
 
-{tekst[:1500]}
+{tekst[:1200]}
 
-Schrijf:
-- korte samenvatting
+Structuur:
+- Samenvatting
 - 3 sterke punten
 - 3 verbeterpunten
 - conclusie
@@ -179,8 +181,9 @@ Schrijf:
 
         data = response.json()
 
+        # flan-t5 returns usually list with generated_text
         if isinstance(data, list) and len(data) > 0:
-            output = data[0].get("summary_text", "Geen output")
+            output = data[0].get("generated_text", str(data[0]))
         else:
             output = str(data)
 
