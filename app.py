@@ -133,68 +133,65 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    hf_token = st.secrets.get("HF_TOKEN")
+    labels = ["Presence", "Taal", "Contact", "Visual", "Vragen"]
 
-    if not hf_token:
-        return {
-            "gemiddelde": avg,
-            "feedback": "Geen HF_TOKEN gevonden in Streamlit Secrets.",
-            "positief": [],
-            "verbeter": [],
-            "profiel": "Onbekend"
-        }
+    # -------------------------
+    # 1. Analyse sterke/zwakke punten
+    # -------------------------
 
-    url = "https://api-inference.huggingface.co/models/google/flan-t5-small"
+    sterk = []
+    zwak = []
 
-    headers = {
-        "Authorization": f"Bearer {hf_token}"
-    }
+    for i, s in enumerate(scores):
+        klas = klas_scores[i] if klas_scores[i] else 0
 
-    prompt = f"""
-Geef een korte, duidelijke analyse van deze feedback:
+        if s >= 6:
+            sterk.append(labels[i])
+        elif s < klas:
+            zwak.append(labels[i])
 
-{tekst[:1200]}
+    # -------------------------
+    # 2. Tekst analyse (simpel NLP patroon)
+    # -------------------------
 
-Structuur:
-- Samenvatting
-- 3 sterke punten
-- 3 verbeterpunten
-- conclusie
+    woorden = tekst.lower().split()
+    woord_aantal = len(woorden)
+
+    toon = "positief" if any(w in woorden for w in ["goed", "sterk", "duidelijk", "fijn"]) else "neutraal"
+
+    # -------------------------
+    # 3. AI-achtige samenvatting (gegenereerd)
+    # -------------------------
+
+    samenvatting = (
+        f"De groep behaalt een gemiddelde score van {avg}/7. "
+        f"De feedback toont een {toon} beeld van de presentatie. "
+        f"Er werd vooral gelet op communicatie, structuur en visuele ondersteuning."
+    )
+
+    # -------------------------
+    # 4. Rapport opbouw
+    # -------------------------
+
+    feedback = f"""
+SAMENVATTING
+{samenvatting}
+
+STERKE PUNTEN
+{", ".join(sterk) if sterk else "Geen duidelijke uitschieters, maar stabiel niveau over alle criteria."}
+
+VERBETERPUNTEN
+{", ".join(zwak) if zwak else "Geen grote zwakke punten ten opzichte van klasgemiddelde."}
+
+EINDCONCLUSIE
+De presentatie toont een { "sterk" if avg >= 5.5 else "ontwikkelend" } niveau met duidelijke aandacht voor verbetering.
 """
-
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json={"inputs": prompt},
-            timeout=30
-        )
-
-        if response.status_code != 200:
-            return {
-                "gemiddelde": avg,
-                "feedback": f"HF HTTP error {response.status_code}: {response.text[:200]}",
-                "positief": [],
-                "verbeter": [],
-                "profiel": "Onbekend"
-            }
-
-        data = response.json()
-
-        # flan-t5 returns usually list with generated_text
-        if isinstance(data, list) and len(data) > 0:
-            output = data[0].get("generated_text", str(data[0]))
-        else:
-            output = str(data)
-
-    except Exception as e:
-        output = f"AI fout: {str(e)}"
 
     return {
         "gemiddelde": avg,
-        "feedback": output,
-        "positief": [],
-        "verbeter": [],
+        "feedback": feedback,
+        "positief": sterk,
+        "verbeter": zwak,
         "profiel": "Presentator"
     }
 # =========================
