@@ -137,7 +137,7 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
 
     try:
         response = requests.post(
-            "https://api-inference.huggingface.co/models/google/flan-t5-large",
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
             headers={"Authorization": f"Bearer {hf_token}"},
             json={"inputs": tekst[:1500]},
             timeout=30
