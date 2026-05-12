@@ -28,7 +28,6 @@ import requests
 # CONFIG
 # =========================
 
-st.write("SECRETS:", st.secrets)
 st.set_page_config(page_title="🎓 Peer Feedback Tool", layout="wide")
 
 BESTAND = "peer_feedback.csv"
@@ -134,41 +133,48 @@ def genereer_ai_feedback(scores, klas_scores, tekst):
 
     avg = round(sum(scores) / len(scores), 1)
 
-    # 🔴 FALLBACK ALS GEEN TOKEN
-    if not HF_TOKEN:
-
-        return {
-            "gemiddelde": avg,
-            "feedback": "AI is niet actief (geen HF_TOKEN ingesteld).",
-            "positief": ["Goede basispresentatie"],
-            "verbeter": ["Meer detail in AI analyse toevoegen"],
-            "profiel": "Presentator"
-        }
-
-    prompt = f"""
-Je bent een presentatiecoach.
-
-Analyseer deze feedback:
-
-{tekst}
-
-Geef:
-- samenvatting (±150 woorden)
-- 3 sterke punten
-- 3 verbeterpunten
-- presentatieprofiel
-"""
-
-    response = requests.post(
-        "https://api-inference.huggingface.co/models/google/flan-t5-large",
-        headers={"Authorization": f"Bearer {HF_TOKEN}"},
-        json={"inputs": prompt}
-    )
+    hf_token = st.secrets["HF_TOKEN"]
 
     try:
-        output = response.json()[0]["generated_text"]
-    except:
-        output = "AI niet beschikbaar."
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/google/flan-t5-large",
+            headers={"Authorization": f"Bearer {hf_token}"},
+            json={"inputs": tekst[:1500]},
+            timeout=25
+        )
+
+        data = response.json()
+
+        # 🔴 CASE 1: API geeft error
+        if isinstance(data, dict) and "error" in data:
+            return {
+                "gemiddelde": avg,
+                "feedback": f"HF error: {data['error']}",
+                "positief": [],
+                "verbeter": [],
+                "profiel": "Onbekend"
+            }
+
+        # 🔴 CASE 2: onverwachte structuur
+        if not isinstance(data, list):
+            return {
+                "gemiddelde": avg,
+                "feedback": f"Onverwachte response: {data}",
+                "positief": [],
+                "verbeter": [],
+                "profiel": "Onbekend"
+            }
+
+        output = data[0].get("generated_text", "Geen output")
+
+    except Exception as e:
+        return {
+            "gemiddelde": avg,
+            "feedback": f"AI fout: {str(e)}",
+            "positief": [],
+            "verbeter": [],
+            "profiel": "Onbekend"
+        }
 
     return {
         "gemiddelde": avg,
@@ -177,7 +183,6 @@ Geef:
         "verbeter": [],
         "profiel": "Presentator"
     }
-
 # =========================
 # PDF EXPORT
 # =========================
