@@ -218,6 +218,13 @@ if mode == "✍️ Leerlingen: feedback geven":
 # LEERKRACHT MODE
 # =========================
 
+klas_scores = [
+    df["presence"].mean(),
+    df["taal"].mean(),
+    df["contact"].mean(),
+    df["visual"].mean(),
+    df["vragen"].replace(0, pd.NA).mean()
+]
 if mode == "📊 Leerkracht: groepsrapport":
 
     pin = st.text_input("Leerkracht-PIN", type="password")
